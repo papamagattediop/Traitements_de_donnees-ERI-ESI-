@@ -1,0 +1,30 @@
+nom_generique,fichier_source,variable_SEN,bloc,description,responsable
+hh1,individus,hh1,identification,Numero de grappe,Personne1
+hh2,individus,hh2,identification,Numero de menage,Personne1
+m1,individus,M1,identification,Numero d'ordre de l'individu dans le menage,Personne1
+hh1,emploi,hh1,identification,Numero de grappe,Personne1
+hh2,emploi,hh2,identification,Numero de menage,Personne1
+m1,emploi,m1,identification,Numero d'ordre de l'individu dans le menage,Personne1
+region,individus,Region,geographie,Region de residence,Personne2
+milieu,individus,MILIEU,geographie,Milieu de residence (urbain/rural),Personne2
+milieu_etendu,individus,milieu_etendu,geographie,Milieu de residence detaille,Personne2
+hhsize,individus,hhsize,menage,Taille du menage,Personne4
+hhweight,individus,hhweight,menage,Poids menage,Personne4
+sexe,individus,M3,demographie,Sexe de l'individu,Personne2
+age,individus,M4,demographie,Age de l'individu,Personne2
+lien_cm,individus,M2,demographie,Lien de parente avec le CM,Personne2
+situation_matrimoniale,individus,M5,demographie,Situation matrimoniale,Personne2
+niveau_etudes,individus,M19a,education,Niveau d'etudes atteint,Personne2
+branche_etudes,individus,M19b,education,Branche d'etudes (si applicable),Personne2
+sitac,emploi,sitac,emploi,Situation d'activite synthetique,Personne3
+statut_emploi_principal,emploi,AP3,emploi_principal,Statut dans l'emploi principal (salarie/independant),Personne3
+secteur_isic_principal,emploi,AP4,emploi_principal,Secteur d'activite ISIC Rev4 - emploi principal,Personne3
+revenu_principal,emploi,AP8A1,emploi_principal,Revenu de l'emploi principal,Personne3
+heures_travail_principal,emploi,AP6A,emploi_principal,Nombre d'heures travaillees - emploi principal,Personne3
+formalite_principal,emploi,AP7,emploi_principal,Formalite de l'emploi/unite principal,Personne3
+raison_inactivite,emploi,SE9,situation_activite,Raison d'inactivite si inactif,Personne3
+existence_emploi_secondaire,emploi,AS1A,emploi_secondaire,Existence d'un emploi secondaire,Personne4
+secteur_isic_secondaire,emploi,AS3_BRA2,emploi_secondaire,Secteur d'activite ISIC Rev4 - emploi secondaire (AS1),Personne4
+heures_travail_secondaire,emploi,AS4_AS1,emploi_secondaire,Heures travaillees - emploi secondaire (AS1) a verifier,Personne4
+revenu_secondaire,emploi,AS6_AS1,emploi_secondaire,Revenu de l'emploi secondaire (AS1) a verifier,Personne4
+formalite_secondaire,emploi,AS7A_AS1,emploi_secondaire,Formalite de l'emploi secondaire (AS1) a verifier,Personne4

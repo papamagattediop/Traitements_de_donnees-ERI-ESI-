@@ -1,0 +1,15 @@
+Groupe 1 – Il est attendu de reproduire un pipeline qui permet d’extraire (à partir d’un dossier input), de traiter et de stocker dans un dossier (disons output) les informations suivantes.
+Pour les individus
+Démographiques : âge, genre, niveau d’études, branche d’études (si elle existe), situation matrimoniale, lien de parenté avec le CM
+Géographique : région, département, milieu de résidence
+Emploi : statut d’emploi, secteur d’emploi (principal et secondaire) suivant la classification ISIC Rev 4, revenu (principal et secondaire), nombre d’heure de travail (principal et secondaire), formalité de l’emploi / de l’unité (principal et secondaire), raison d’inactivité si inactif, type d’emploi (salarié ou indépendant)
+Pour les ménages
+Les variables démographiques ci-haut pour le CM
+Les variables géographiques des ménages
+Les variables relatives aux dépenses des ménages, aux actifs et à l’habitat.
+NB: 
+Toutes ces variables ne sont pas forcément directement collectées mais peuvent être déduites des variables collectées par la combinaison de plusieurs facteurs.
+Il est attendu un pipeline clair, reproductible et scalable. ERI-ESI étant une enquête sous-régionale harmonisée, il est attendu que le code puisse être utilisé pour un autre pays sans avoir à y apporter de très grands changements.
+Les données manquantes et aberrantes devront être traitées proprement (de façon scalable) avec des contrôles de cohérence appropriés.
+Un fichier QAQC devra être produit contenant des estimations primaires après traitement afin de vérifier la qualité des données.
+Il est attendu, en output, deux tables consolidées (ménages et individus)

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERI-ESI 2017, Répartition des tâches</title>
+<style>
+  :root{
+    --bg:#0f1115;
+    --card:#171a21;
+    --card-border:#262b36;
+    --text:#e7e9ee;
+    --muted:#9aa3b2;
+    --accent1:#5b8def;
+    --accent2:#34c38f;
+    --accent3:#f1b44c;
+    --accent4:#e06a8a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    background:radial-gradient(circle at 20% 0%, #1a1f2b 0%, var(--bg) 60%);
+    color:var(--text);
+    min-height:100vh;
+  }
+  header{
+    padding:48px 24px 24px;
+    text-align:center;
+  }
+  header h1{
+    margin:0 0 8px;
+    font-size:1.9rem;
+    letter-spacing:.5px;
+  }
+  header p{
+    color:var(--muted);
+    margin:0;
+    font-size:.95rem;
+  }
+  .progress-wrap{
+    max-width:680px;
+    margin:28px auto 0;
+    padding:0 24px;
+  }
+  .progress-bar{
+    height:10px;
+    border-radius:6px;
+    background:var(--card-border);
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--accent1), var(--accent2));
+    transition:width .4s ease;
+  }
+  .progress-label{
+    text-align:center;
+    color:var(--muted);
+    font-size:.8rem;
+    margin-top:8px;
+  }
+  .pipeline{
+    max-width:960px;
+    margin:40px auto 0;
+    padding:0 24px;
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .pipeline .step{
+    flex:1;
+    min-width:120px;
+    text-align:center;
+    color:var(--muted);
+    font-size:.78rem;
+    position:relative;
+  }
+  .pipeline .step .dot{
+    width:10px;height:10px;border-radius:50%;
+    background:var(--card-border);
+    margin:0 auto 8px;
+  }
+  .pipeline .step.active .dot{background:var(--accent1);}
+  .pipeline .step:not(:last-child)::after{
+    content:'';
+    position:absolute;
+    top:5px; right:-50%;
+    width:100%; height:1px;
+    background:var(--card-border);
+  }
+
+  main{
+    max-width:1080px;
+    margin:48px auto 80px;
+    padding:0 24px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(260px,1fr));
+    gap:22px;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:var(--radius);
+    padding:22px 22px 18px;
+    position:relative;
+    overflow:hidden;
+    transition:transform .25s ease, box-shadow .25s ease;
+  }
+  .card::before{
+    content:'';
+    position:absolute; top:0; left:0; right:0; height:4px;
+  }
+  .card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 18px 40px -20px rgba(0,0,0,.6);
+  }
+  .card.p1::before{background:var(--accent1);}
+  .card.p2::before{background:var(--accent2);}
+  .card.p3::before{background:var(--accent3);}
+  .card.p4::before{background:var(--accent4);}
+
+  .card .tag{
+    display:inline-block;
+    font-size:.7rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .card h2{
+    margin:0 0 4px;
+    font-size:1.25rem;
+  }
+  .card .role{
+    font-size:.9rem;
+    color:var(--muted);
+    margin-bottom:16px;
+  }
+  .card .source{
+    font-size:.78rem;
+    background:#0c0e13;
+    border:1px solid var(--card-border);
+    border-radius:8px;
+    padding:8px 10px;
+    margin-bottom:14px;
+    color:var(--muted);
+  }
+  .card .source code{color:var(--text);}
+
+  .checklist{list-style:none; margin:0; padding:0;}
+  .checklist li{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    padding:8px 0;
+    border-top:1px solid var(--card-border);
+    font-size:.86rem;
+    line-height:1.4;
+  }
+  .checklist li:first-child{border-top:none;}
+  .checklist input[type=checkbox]{
+    margin-top:3px;
+    accent-color:var(--accent1);
+    width:16px; height:16px;
+    flex-shrink:0;
+    cursor:pointer;
+  }
+  .checklist li.done span{
+    color:var(--muted);
+    text-decoration:line-through;
+  }
+
+  .meta{
+    margin-top:16px;
+    padding-top:14px;
+    border-top:1px solid var(--card-border);
+    font-size:.78rem;
+    color:var(--muted);
+  }
+  .meta b{color:var(--text);}
+
+  footer{
+    text-align:center;
+    color:var(--muted);
+    font-size:.78rem;
+    padding-bottom:40px;
+  }
+
+  .legend{
+    max-width:1080px;
+    margin:0 auto;
+    padding:0 24px;
+    display:flex;
+    gap:18px;
+    flex-wrap:wrap;
+    justify-content:center;
+    font-size:.78rem;
+    color:var(--muted);
+  }
+  .legend span{display:flex; align-items:center; gap:6px;}
+  .legend i{width:10px; height:10px; border-radius:50%; display:inline-block;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ERI-ESI 2017, Répartition des tâches</h1>
+  <p>Pipeline individus / ménages &middot; Groupe 1 &middot; ENSAE</p>
+</header>
+
+<div class="progress-wrap">
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-label" id="progressLabel">0 / 0 tâches complétées</div>
+</div>
+
+<div class="pipeline">
+  <div class="step active"><div class="dot"></div>Extraction & fusion</div>
+  <div class="step"><div class="dot"></div>Individus, démo/géo</div>
+  <div class="step"><div class="dot"></div>Emploi principal</div>
+  <div class="step"><div class="dot"></div>Emploi secondaire & ménages</div>
+  <div class="step"><div class="dot"></div>QAQC & assemblage</div>
+</div>
+
+<div class="legend">
+  <span><i style="background:var(--accent1)"></i> Personne 1</span>
+  <span><i style="background:var(--accent2)"></i> Personne 2</span>
+  <span><i style="background:var(--accent3)"></i> Personne 3</span>
+  <span><i style="background:var(--accent4)"></i> Personne 4</span>
+</div>
+
+<main>
+
+  <div class="card p1">
+    <span class="tag">Personne 1</span>
+    <h2>Architecture & QAQC</h2>
+    <div class="role">Fusion des données, dictionnaire de variables, assemblage final, fichier QAQC</div>
+    <div class="source">Fichiers : <code>individus_TP.dta</code> + <code>emploi_Tp.dta</code><br>Sortie : <code>config.py</code>, <code>01_extract.py</code>, <code>02_merge.py</code></div>
+    <ul class="checklist">
+      <li><input type="checkbox" checked><span>Structure du repo (input/scripts/output/docs)</span></li>
+      <li><input type="checkbox" checked><span>Dictionnaire de variables paramétrable par pays</span></li>
+      <li><input type="checkbox" checked><span>Script d'extraction des .dta</span></li>
+      <li><input type="checkbox" checked><span>Script de fusion individus + emploi</span></li>
+      <li><input type="checkbox"><span>Vérifier l'existence d'un fichier ménage (dépenses/actifs/habitat)</span></li>
+      <li><input type="checkbox"><span>Assembler les modules 2, 3 et 4 en pipeline unique</span></li>
+      <li><input type="checkbox"><span>Produire le fichier QAQC (estimations primaires)</span></li>
+      <li><input type="checkbox"><span>Rédiger le Résumé final (PDF)</span></li>
+    </ul>
+    <div class="meta">Dépend de : <b>rien</b> &middot; Bloque : tout le monde</div>
+  </div>
+
+  <div class="card p2">
+    <span class="tag">Personne 2</span>
+    <h2>Individus, démographie & géographie</h2>
+    <div class="role">Caractéristiques individuelles de base et localisation</div>
+    <div class="source">Fichier : <code>individus_TP.dta</code> (53 variables)<br>Préfixes : M1-M25, FP1-FP9, Region, MILIEU</div>
+    <ul class="checklist">
+      <li><input type="checkbox"><span>Âge, genre (M3, M4)</span></li>
+      <li><input type="checkbox"><span>Niveau d'études / branche d'études (M19a, M19b)</span></li>
+      <li><input type="checkbox"><span>Situation matrimoniale (M5)</span></li>
+      <li><input type="checkbox"><span>Lien de parenté avec le CM (M2)</span></li>
+      <li><input type="checkbox"><span>Région, département, milieu (Region, MILIEU)</span></li>
+      <li><input type="checkbox"><span>Traiter les manquants réels sexe/âge (~32%)</span></li>
+      <li><input type="checkbox"><span>Livrer <code>03_demographie_geo.py</code></span></li>
+    </ul>
+    <div class="meta">Dépend de : <b>Personne 1</b> (base fusionnée) &middot; Alimente : Personne 4 (démo du CM)</div>
+  </div>
+
+  <div class="card p3">
+    <span class="tag">Personne 3</span>
+    <h2>Emploi, bloc principal</h2>
+    <div class="role">Situation d'activité et emploi principal</div>
+    <div class="source">Fichier : <code>emploi_Tp.dta</code><br>Préfixes : SE, AP, SGEP (≈221 variables)</div>
+    <ul class="checklist">
+      <li><input type="checkbox"><span>Situation d'activité / sous-emploi (sitac, SE1-SE12)</span></li>
+      <li><input type="checkbox"><span>Statut dans l'emploi principal (AP3)</span></li>
+      <li><input type="checkbox"><span>Secteur ISIC Rev.4 principal (AP4)</span></li>
+      <li><input type="checkbox"><span>Revenu de l'emploi principal (AP8A1...)</span></li>
+      <li><input type="checkbox"><span>Heures de travail principal (AP6A)</span></li>
+      <li><input type="checkbox"><span>Formalité de l'emploi/unité (AP7)</span></li>
+      <li><input type="checkbox"><span>Raison d'inactivité si inactif (SE9)</span></li>
+      <li><input type="checkbox"><span>Type d'emploi salarié / indépendant</span></li>
+      <li><input type="checkbox"><span>Livrer <code>03_emploi_principal.py</code></span></li>
+    </ul>
+    <div class="meta">Dépend de : <b>Personne 1</b> (base fusionnée) &middot; Indépendant de : Personne 2 et 4</div>
+  </div>
+
+  <div class="card p4">
+    <span class="tag">Personne 4</span>
+    <h2>Emploi secondaire, chômage & ménages</h2>
+    <div class="role">Emplois secondaires, sous-population chômeurs, et table ménages</div>
+    <div class="source">Fichier : <code>emploi_Tp.dta</code><br>Préfixes : AS, SGES, C, R, PS, FPS, TP, PRT (≈258 variables)<br>+ <code>individus_TP.dta</code> (hhsize, hhweight)</div>
+    <ul class="checklist">
+      <li><input type="checkbox"><span>Existence / secteur / revenu / heures emploi secondaire (AS1A, AS3_BRA2...)</span></li>
+      <li><input type="checkbox"><span>Ancienneté et motif du chômage (bloc C, R)</span></li>
+      <li><input type="checkbox"><span>Affiliation protection sociale (PS, FPS)</span></li>
+      <li><input type="checkbox"><span>Trajectoire / origine sociale (TP, TB)</span></li>
+      <li><input type="checkbox"><span>Risques au travail (PRT)</span></li>
+      <li><input type="checkbox"><span>Table ménages : démo du CM (avec Personne 2) + géo + hhsize + hhweight</span></li>
+      <li><input type="checkbox"><span>Livrer <code>03_emploi_secondaire.py</code> + <code>03_menages.py</code></span></li>
+    </ul>
+    <div class="meta">Dépend de : <b>Personne 1</b> &middot; Table ménages dépend aussi de <b>Personne 2</b></div>
+  </div>
+
+</main>
+
+<footer>
+  Les cases sont sauvegardées automatiquement dans ce navigateur. Mettez à jour le dictionnaire de variables (<code>docs/dictionnaire_variables.csv</code>) au fur et à mesure.
+</footer>
+
+<script>
+  const checkboxes = document.querySelectorAll('.checklist input[type=checkbox]');
+  const STORAGE_KEY = 'eri_esi_repartition_v1';
+
+  function saveState(){
+    const state = Array.from(checkboxes).map(cb => cb.checked);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    updateProgress();
+  }
+
+  function loadState(){
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const state = JSON.parse(raw);
+      checkboxes.forEach((cb, i) => { if(state[i] !== undefined) cb.checked = state[i]; });
+    }
+    checkboxes.forEach(cb => toggleDone(cb));
+    updateProgress();
+  }
+
+  function toggleDone(cb){
+    cb.closest('li').classList.toggle('done', cb.checked);
+  }
+
+  function updateProgress(){
+    const total = checkboxes.length;
+    const done = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const pct = total ? Math.round((done/total)*100) : 0;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = `${done} / ${total} tâches complétées (${pct}%)`;
+  }
+
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', () => { toggleDone(cb); saveState(); });
+  });
+
+  loadState();
+</script>
+
+</body>
+</html>
