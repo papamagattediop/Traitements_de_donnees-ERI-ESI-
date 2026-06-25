@@ -8,34 +8,38 @@ Pipeline reproductible et scalable pour extraire, traiter et consolider les donn
 
 ```
 .
-├── input/<PAYS>/        Données brutes (.dta)
-├── output/<PAYS>/       Tables produites par le pipeline
-├── scripts/             Pipeline Python
+├── input/<PAYS>/        Données brutes (.dta), non versionnées
+├── output/<PAYS>/       Tables produites par le pipeline (.dta), non versionnées
+├── scripts/
+│   ├── stata/           Pipeline principal (extraction, fusion, modules thématiques)
+│   └── python/          Fichier QAQC (estimations de contrôle)
 ├── docs/                Dictionnaire de variables, notes
 └── README.md
 ```
 
 ## Démarrage rapide
 
-```bash
-cd scripts
-python 02_merge.py SEN
+Dans Stata :
+
+```stata
+cd "scripts/stata"
+do 01_fusion.do
 ```
 
-Génère `output/SEN/base_individus_emploi_fusionnee.csv`, la base de travail commune sur laquelle chaque module thématique vient ajouter ses variables dérivées.
+Génère `output/SEN/base_individus_emploi_fusionnee.dta`, la base de travail commune sur laquelle chaque module thématique vient ajouter ses variables dérivées.
 
 ## Pipeline
 
-| Étape | Script | Rôle |
+| Étape | Fichier | Rôle |
 |---|---|---|
-| 1 | `01_extract.py` | Lecture des fichiers `.dta` |
-| 2 | `02_merge.py` | Fusion individus ↔ emploi |
-| 3 | `03_*.py` | Modules thématiques (un par membre du groupe) |
-| 4 | `04_qaqc.py` | Contrôle qualité et estimations primaires |
+| 1 | `scripts/stata/config.do` | Paramètres du pays actif (pays, chemins, clés de fusion) |
+| 2 | `scripts/stata/01_fusion.do` | Fusion individus ↔ emploi |
+| 3 | `scripts/stata/03_*.do` | Modules thématiques (un par membre du groupe) |
+| 4 | `scripts/python/04_qaqc.py` | Contrôle qualité et estimations primaires |
 
 ## Adapter à un autre pays
 
-Toute la configuration spécifique à un pays est centralisée dans `scripts/config.py`. Ajouter un bloc dans `PAYS_CONFIG` suffit, sans modifier le reste du pipeline.
+Toute la configuration spécifique à un pays est centralisée dans `scripts/stata/config.do`. Changer `PAYS` et, si besoin, les noms de clés (`CLES_INDIVIDUS`/`CLES_EMPLOI`) suffit, sans modifier le reste du pipeline.
 
 ## Répartition des tâches
 

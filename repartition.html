@@ -238,7 +238,7 @@
     <span class="tag">Personne 1</span>
     <h2>Architecture & QAQC</h2>
     <div class="role">Fusion des données, dictionnaire de variables, assemblage final, fichier QAQC</div>
-    <div class="source">Fichiers : <code>individus_TP.dta</code> + <code>emploi_Tp.dta</code><br>Sortie : <code>config.py</code>, <code>01_extract.py</code>, <code>02_merge.py</code></div>
+    <div class="source">Fichiers : <code>individus_TP.dta</code> + <code>emploi_Tp.dta</code><br>Sortie : <code>scripts/stata/config.do</code>, <code>01_fusion.do</code>, <code>scripts/python/04_qaqc.py</code></div>
     <ul class="checklist">
       <li><input type="checkbox" checked><span>Structure du repo (input/scripts/output/docs)</span></li>
       <li><input type="checkbox" checked><span>Dictionnaire de variables paramétrable par pays</span></li>
@@ -264,7 +264,7 @@
       <li><input type="checkbox"><span>Lien de parenté avec le CM (M2)</span></li>
       <li><input type="checkbox"><span>Région, département, milieu (Region, MILIEU)</span></li>
       <li><input type="checkbox"><span>Traiter les manquants réels sexe/âge (~32%)</span></li>
-      <li><input type="checkbox"><span>Livrer <code>03_demographie_geo.py</code></span></li>
+      <li><input type="checkbox"><span>Livrer <code>scripts/stata/03_demographie_geo.do</code></span></li>
     </ul>
     <div class="meta">Dépend de : <b>Personne 1</b> (base fusionnée) &middot; Alimente : Personne 4 (démo du CM)</div>
   </div>
@@ -283,7 +283,7 @@
       <li><input type="checkbox"><span>Formalité de l'emploi/unité (AP7)</span></li>
       <li><input type="checkbox"><span>Raison d'inactivité si inactif (SE9)</span></li>
       <li><input type="checkbox"><span>Type d'emploi salarié / indépendant</span></li>
-      <li><input type="checkbox"><span>Livrer <code>03_emploi_principal.py</code></span></li>
+      <li><input type="checkbox"><span>Livrer <code>scripts/stata/03_emploi_principal.do</code></span></li>
     </ul>
     <div class="meta">Dépend de : <b>Personne 1</b> (base fusionnée) &middot; Indépendant de : Personne 2 et 4</div>
   </div>
@@ -300,7 +300,7 @@
       <li><input type="checkbox"><span>Trajectoire / origine sociale (TP, TB)</span></li>
       <li><input type="checkbox"><span>Risques au travail (PRT)</span></li>
       <li><input type="checkbox"><span>Table ménages : démo du CM (avec Personne 2) + géo + hhsize + hhweight</span></li>
-      <li><input type="checkbox"><span>Livrer <code>03_emploi_secondaire.py</code> + <code>03_menages.py</code></span></li>
+      <li><input type="checkbox"><span>Livrer <code>scripts/stata/03_emploi_secondaire.do</code> + <code>03_menages.do</code></span></li>
     </ul>
     <div class="meta">Dépend de : <b>Personne 1</b> &middot; Table ménages dépend aussi de <b>Personne 2</b></div>
   </div>
