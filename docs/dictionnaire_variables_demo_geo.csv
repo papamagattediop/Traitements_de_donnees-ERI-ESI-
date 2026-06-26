@@ -1,0 +1,22 @@
+variable_sortie,libelle,type,source,traitement
+id_grappe,Grappe,identifiant,hh1,repris tel quel
+id_menage,Numero de menage,identifiant,hh2,repris tel quel
+id_ordre,Numero d'ordre,identifiant,m1,repris tel quel
+id_men,Identifiant menage,identifiant,hh1 + hh2,concatenation grappe et numero de menage
+poids,Poids de sondage,numerique,hhweight,repris tel quel
+taille_menage,Taille du menage,numerique,hhsize,repris tel quel
+sexe,Sexe,categoriel,M3 (controle avec m3E),roster comme reference complete; desaccords avec le module emploi signales par flag_sexe_incoherent
+age,Age en annees,numerique,M4 (controle avec m4),codes NSP mis a manquant; ages hors bornes 0-110 neutralises et signales par flag_age_aberrant
+groupe_age,Groupe d'age,categoriel,age,decoupage en 8 classes (0-4 a 65 et plus)
+lien_cm,Lien de parente avec le CM (detaille),categoriel,M2,repris avec libelles source
+lien_cm_grp,Lien de parente avec le CM (regroupe),categoriel,M2,regroupe en 5 postes (chef, conjoint, enfant, autre parent, sans lien ou domestique)
+matrimoniale,Situation matrimoniale,categoriel,M25,non applicable code 0 si moins de 12 ans (question non posee); manquant residuel code 9 signale par flag_matrimoniale_manquant
+niveau_etudes,Niveau d'etudes consolide,categoriel,M13 M15 M16a M20a M19a,reconstitue: jamais scolarise = aucun; scolarise = niveau actuel; sorti = niveau atteint; trop jeune = non applicable; echelle simplifiee portable
+branche_etudes,Branche d'etudes,categoriel,M16a M20a M19a,deduite du niveau brut: general / technique / superieur / non applicable
+region,Region,categoriel,Region,repris avec libelles source
+departement,Departement,categoriel,non disponible,absent du fichier Senegal; colonne creee vide pour stabilite du schema entre pays
+milieu,Milieu de residence,categoriel,MILIEU,repris avec libelles source (urbain / rural)
+milieu_etendu,Strate de residence,categoriel,milieu_etendu,repris avec libelles source (Dakar / autres urbains / rural)
+flag_sexe_incoherent,Desaccord sexe roster vs emploi,indicateur,M3 vs m3E,1 si les deux sources de sexe different
+flag_age_aberrant,Age aberrant neutralise,indicateur,M4,1 si age hors bornes mis a manquant
+flag_matrimoniale_manquant,Situation matrimoniale manquante,indicateur,M25,1 si manquant residuel chez les 12 ans et plus
