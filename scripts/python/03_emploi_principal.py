@@ -155,6 +155,10 @@ CONFIG = {
     # Libelles des variables categorielles construites par ce module (codes
     # numeriques, jamais de texte brut dans les colonnes de sortie - meme
     # convention que le module demographie/geographie)
+    "labels_situation_activite_grp": {
+        1: "Actif occupe", 2: "Chomeur BIT",
+        3: "Main-d'oeuvre potentielle", 4: "Inactif (hors main d'oeuvre)",
+    },
     "labels_type_emploi": {1: "Salarie", 2: "Independant"},
     "labels_secteur_4cat": {1: "Primaire", 2: "Industrie", 3: "Commerce", 4: "Service"},
     "labels_formalite": {1: "Formel", 2: "Informel"},
@@ -533,9 +537,204 @@ def recoder_formalite(df, cfg, meta):
 
 
 # ----------------------------------------------------------------------------
+# Assemblage et ecriture de la sortie
+# ----------------------------------------------------------------------------
+
+def construire_sortie(df, cfg):
+    """Selectionne et nomme les colonnes finales du bloc emploi principal.
+    Les variables brutes intermediaires (AP13A, AP6D, ...) ne sont pas
+    reprises - seulement les variables construites."""
+    v = cfg["vars"]
+    sortie = pd.DataFrame()
+    sortie["id_grappe"] = df[v["id_grappe"]]
+    sortie["id_menage"] = df[v["id_menage"]]
+    sortie["id_ordre"] = df[v["id_ordre"]]
+    sortie["id_men"] = df["id_men"]
+    sortie["poids_emploi"] = df[v["poids_emploi"]]
+
+    sortie["situation_activite"] = df["situation_activite"]
+    sortie["situation_activite_grp"] = df["situation_activite_grp"]
+    sortie["raison_inactivite"] = df["raison_inactivite"]
+
+    sortie["statut_emploi"] = df["statut_emploi"]
+    sortie["type_emploi"] = df["type_emploi"]
+
+    sortie["secteur_isic_principal"] = df["secteur_isic_principal"]
+    sortie["secteur_isic_principal_4cat"] = df["secteur_isic_principal_4cat"]
+
+    sortie["heures_semaine_principal"] = df["heures_semaine_principal"]
+    sortie["sous_emploi_duree"] = df["sous_emploi_duree"]
+    sortie["flag_heures_aberrantes"] = df["flag_heures_aberrantes"]
+    sortie["flag_ecart_heures"] = df["flag_ecart_heures"]
+
+    sortie["revenu_principal_mensuel_fcfa"] = df["revenu_principal_mensuel_fcfa"]
+    sortie["revenu_source"] = df["revenu_source"]
+    sortie["flag_revenu_non_renseigne"] = df["flag_revenu_non_renseigne"]
+    sortie["flag_revenu_aberrant"] = df["flag_revenu_aberrant"]
+
+    sortie["formalite_unite"] = df["formalite_unite"]
+    sortie["formalite_emploi"] = df["formalite_emploi"]
+    return sortie
+
+
+def libelles_sortie(cfg, meta):
+    """Construit les dictionnaires de libelles a ecrire dans le .dta de
+    sortie : libelles source repris tels quels pour les variables gardees
+    avec leur code d'origine, libelles maison pour les variables construites."""
+    v = cfg["vars"]
+    val_labels = {
+        # repris des metadonnees source (suivent le pays automatiquement)
+        "situation_activite": libelles_valeurs(meta, v["sitac"]),
+        "raison_inactivite": libelles_valeurs(meta, v["raison_inactivite"]),
+        "statut_emploi": libelles_valeurs(meta, v["statut_emploi"]),
+        "secteur_isic_principal": libelles_valeurs(meta, v["branche"]),
+        # construits par ce module
+        "situation_activite_grp": cfg["labels_situation_activite_grp"],
+        "type_emploi": cfg["labels_type_emploi"],
+        "secteur_isic_principal_4cat": cfg["labels_secteur_4cat"],
+        "sous_emploi_duree": cfg["labels_oui_non"],
+        "revenu_source": cfg["labels_revenu_source"],
+        "formalite_unite": cfg["labels_formalite"],
+        "formalite_emploi": cfg["labels_formalite"],
+    }
+
+    col_labels = {
+        "id_grappe": "Grappe", "id_menage": "Numero de menage",
+        "id_ordre": "Numero d'ordre", "id_men": "Identifiant menage",
+        "poids_emploi": "Poids de sondage (emploi)",
+        "situation_activite": "Situation d'activite (code source)",
+        "situation_activite_grp": "Situation d'activite (regroupee)",
+        "raison_inactivite": "Raison d'inactivite",
+        "statut_emploi": "Statut dans l'emploi principal (categorie socioprofessionnelle)",
+        "type_emploi": "Type d'emploi (salarie/independant)",
+        "secteur_isic_principal": "Secteur/branche d'activite (ISIC Rev.4, 21 sections)",
+        "secteur_isic_principal_4cat": "Secteur d'activite (4 familles)",
+        "heures_semaine_principal": "Heures travaillees par semaine (emploi principal)",
+        "sous_emploi_duree": "Sous-emploi lie a la duree du travail",
+        "flag_heures_aberrantes": "Heures aberrantes neutralisees (>98h/semaine)",
+        "flag_ecart_heures": "Ecart >10h entre heures declarees et calculees",
+        "revenu_principal_mensuel_fcfa": "Revenu mensuel consolide de l'emploi principal (FCFA)",
+        "revenu_source": "Source/mode de declaration du revenu",
+        "flag_revenu_non_renseigne": "Revenu non renseigne (refus/NSP)",
+        "flag_revenu_aberrant": "Revenu aberrant neutralise",
+        "formalite_unite": "Formalite de l'unite de production (secteur informel ANSD)",
+        "formalite_emploi": "Formalite de l'emploi (avantages employeur, salaries uniquement)",
+    }
+    return val_labels, col_labels
+
+
+# ----------------------------------------------------------------------------
+# Controles de coherence (bloc emploi principal seulement)
+# ----------------------------------------------------------------------------
+
+def controles_coherence(df, cfg):
+    """
+    Controles propres au bloc emploi principal. Ils alimentent le fichier
+    QAQC global (Personne 1) sans s'y substituer. Retourne un tableau de
+    constats, sur le meme modele que le module demographie/geographie.
+    """
+    constats = []
+
+    def ajouter(test, n, detail=""):
+        constats.append({"controle": test, "nombre": int(n), "detail": detail})
+
+    occupe = df["situation_activite"] == 1
+    inactif = df["situation_activite"] == 4
+
+    ajouter("occupes sans statut_emploi renseigne",
+            int((occupe & df["statut_emploi"].isna()).sum()), "doit etre nul ou tres faible")
+    ajouter("statut_emploi renseigne chez des non-occupes",
+            int((~occupe & df["statut_emploi"].notna()).sum()), "doit valoir 0")
+    ajouter("occupes sans secteur_isic_principal renseigne",
+            int((occupe & df["secteur_isic_principal"].isna()).sum()), "a verifier")
+
+    ajouter("heures aberrantes neutralisees (>98h/semaine)",
+            int(df["flag_heures_aberrantes"].sum()), "neutralisees, individus conserves")
+    ajouter("ecart >10h entre heures declarees et calculees (debut/fin x jours)",
+            int(df["flag_ecart_heures"].sum()),
+            "probablement du a l'absence de pause dejeuner dans le calcul de controle")
+
+    ajouter("revenu non renseigne (refus/NSP, AP13a=5 ou 6)",
+            int(df["flag_revenu_non_renseigne"].sum()), "non impute, cf. echange sur l'imputation")
+    ajouter("revenu aberrant neutralise (hors bornes de plausibilite)",
+            int(df["flag_revenu_aberrant"].sum()), "")
+
+    ajouter("raison d'inactivite renseignee pour des non-inactifs",
+            int((~inactif & df["raison_inactivite"].notna()).sum()),
+            "cf. main d'oeuvre potentielle, structurel probable")
+
+    ajouter("occupes sans formalite_unite (unites non marchandes ou non renseigne)",
+            int((occupe & df["formalite_unite"].isna()).sum()),
+            "inclut les unites non marchandes, hors champ par definition ANSD")
+
+    return pd.DataFrame(constats)
+
+
+def estimations_primaires(df, cfg):
+    """
+    Estimations ponderees (poids_emploi = weightemploy) apres traitement,
+    comparees quand possible aux chiffres deja publies dans le rapport final
+    ANSD - sert de premier controle de qualite/plausibilite.
+    """
+    w = df["poids_emploi"]
+    occupe = df["situation_activite"] == 1
+    chomeur = df["situation_activite"] == 2
+    main_oeuvre = occupe | chomeur
+
+    lignes = []
+
+    def ajouter(indicateur, valeur, reference=None):
+        lignes.append({
+            "indicateur": indicateur,
+            "valeur": round(valeur, 2) if pd.notna(valeur) else np.nan,
+            "reference_ansd": reference,
+        })
+
+    def part(masque_num, masque_denom):
+        denom = w[masque_denom].sum()
+        return w[masque_num].sum() / denom * 100 if denom else np.nan
+
+    ajouter("Taux de chomage BIT (%)", part(chomeur, main_oeuvre), 2.9)
+    ajouter("Taux d'emplois vulnerables - independant (%)",
+            part(occupe & (df["type_emploi"] == 2), occupe), 66.1)
+    ajouter("Taux de salarisation (%)",
+            part(occupe & (df["type_emploi"] == 1), occupe), 38.6)
+
+    secteurs_ref = {1: ("Primaire", 24.7), 2: ("Industrie", 19.0),
+                    3: ("Commerce", 27.6), 4: ("Service", 28.7)}
+    for code, (label, reference) in secteurs_ref.items():
+        ajouter(f"Secteur {label} parmi occupes (%)",
+                part(occupe & (df["secteur_isic_principal_4cat"] == code), occupe), reference)
+
+    ajouter("Taux d'emploi informel (%)",
+            part(df["formalite_emploi"] == 2, df["formalite_emploi"].notna()), 95.4)
+    ajouter("Taux >48h/semaine parmi occupes (%)",
+            part(occupe & (df["heures_semaine_principal"] > 48),
+                 occupe & df["heures_semaine_principal"].notna()), 42.3)
+    ajouter("Sous-emploi lie a la duree parmi occupes (%)",
+            part(df["sous_emploi_duree"] == 1, df["sous_emploi_duree"].notna()), None)
+
+    masque_rev = occupe & df["revenu_principal_mensuel_fcfa"].notna()
+    revenu_moyen = (np.average(df.loc[masque_rev, "revenu_principal_mensuel_fcfa"],
+                                weights=w[masque_rev]) if masque_rev.sum() else np.nan)
+    ajouter("Revenu mensuel moyen, emploi principal (FCFA)", revenu_moyen, 125485)
+
+    masque_heures = occupe & df["heures_semaine_principal"].notna()
+    heures_moyennes = (np.average(df.loc[masque_heures, "heures_semaine_principal"],
+                                   weights=w[masque_heures]) if masque_heures.sum() else np.nan)
+    ajouter("Heures moyennes travaillees par semaine", heures_moyennes, None)
+
+    remuneration_horaire = df["revenu_principal_mensuel_fcfa"] / (df["heures_semaine_principal"] * 4.33)
+    masque_rh = masque_rev & masque_heures & (df["heures_semaine_principal"] > 0)
+    rh_moyenne = (np.average(remuneration_horaire[masque_rh], weights=w[masque_rh])
+                  if masque_rh.sum() else np.nan)
+    ajouter("Remuneration horaire moyenne (FCFA/heure)", rh_moyenne, 821.9)
+
+    return pd.DataFrame(lignes)
+
+
+# ----------------------------------------------------------------------------
 # Orchestration : toutes les etapes de recodage thematique sont posees.
-# Reste a venir : assemblage de la sortie, controles de coherence globaux,
-# estimations ponderees, ecriture des fichiers.
 # ----------------------------------------------------------------------------
 
 def main():
@@ -557,8 +756,33 @@ def main():
     df = recoder_revenu(df, cfg, meta)
     df = recoder_formalite(df, cfg, meta)
 
+    sortie = construire_sortie(df, cfg)
+    val_labels, col_labels = libelles_sortie(cfg, meta)
+
+    os.makedirs(cfg["dossier_output"], exist_ok=True)
+    chemin_dta = os.path.join(cfg["dossier_output"], "emploi_principal.dta")
+    pyreadstat.write_dta(sortie, chemin_dta,
+                         variable_value_labels=val_labels,
+                         column_labels=col_labels)
+
     print("-" * 64)
-    print("Tous les blocs thematiques sont poses. Suite : assemblage et QAQC.")
+    print(f"Table emploi principal ecrite : {chemin_dta} "
+          f"({sortie.shape[0]} lignes, {sortie.shape[1]} colonnes)")
+
+    qc = controles_coherence(sortie, cfg)
+    est = estimations_primaires(sortie, cfg)
+    chemin_qc = os.path.join(cfg["dossier_output"], "qc_emploi_principal.csv")
+    chemin_est = os.path.join(cfg["dossier_output"], "estimations_emploi_principal.csv")
+    qc.to_csv(chemin_qc, index=False, encoding="utf-8")
+    est.to_csv(chemin_est, index=False, encoding="utf-8")
+
+    print("\nControles de coherence (bloc emploi principal) :")
+    print(qc.to_string(index=False))
+    print("\nEstimations ponderees (poids_emploi) vs reference ANSD :")
+    print(est.to_string(index=False))
+    print(f"\nFichiers ecrits : {chemin_qc}")
+    print(f"                  {chemin_est}")
+    print("\nTermine.")
 
 
 if __name__ == "__main__":
