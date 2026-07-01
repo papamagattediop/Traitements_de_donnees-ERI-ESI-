@@ -61,8 +61,9 @@ Le traitement suit cinq étapes, réparties entre les membres du groupe :
 5. QAQC et assemblage final. Estimations primaires de contrôle et consolidation
    des deux tables de sortie.
 
-Le pipeline principal est écrit en Stata. Le QAQC est en Python. Le module
-démographie/géographie est fourni dans les deux langages, au choix.
+Le pipeline principal est écrit en Stata. Le QAQC est en Python. Les modules
+démographie/géographie et emploi principal sont fournis dans les deux langages,
+au choix.
 
 ## Module démographie et géographie des individus
 
@@ -108,6 +109,49 @@ Sorties écrites dans `output/<PAYS>/` :
   et l'absence est documentée dans le journal et le fichier de contrôle. Un pays
   disposant du département n'a qu'à le renseigner dans la configuration.
 
+## Module emploi principal
+
+Ce module construit le bloc emploi principal au niveau individu : situation
+d'activité et raison d'inactivité, statut dans l'emploi et type d'emploi
+(salarié/indépendant), secteur/branche d'activité (ISIC Rev.4), heures de
+travail et sous-emploi lié à la durée, revenu mensuel consolidé, et deux
+indicateurs de formalité distincts (unité et emploi), selon les définitions
+officielles du rapport final ANSD.
+
+Deux versions équivalentes sont disponibles :
+
+- `scripts/python/03_emploi_principal.py`
+- `scripts/stata/03_emploi_principal.do`
+
+Sorties écrites dans `output/<PAYS>/` :
+
+- `emploi_principal.dta` : table emploi principal, avec libellés.
+- `qc_emploi_principal.csv` : contrôles de cohérence du bloc.
+- `estimations_emploi_principal.csv` : estimations pondérées, comparées aux
+  chiffres déjà publiés par l'ANSD.
+- `codebook_emploi_principal.csv` : une ligne par variable/modalité, effectif
+  et part pondérée.
+- `journal_emploi_principal.log` : trace horodatée de l'exécution.
+
+Un script de tests automatiques (`scripts/python/tests_emploi_principal.py`)
+vérifie une série d'invariants après traitement, et un script séparé
+(`scripts/python/03_emploi_principal_graphiques.py`, optionnel) produit des
+graphiques d'analyse exploratoire dans `output/<PAYS>/graphiques_emploi_principal/`.
+
+### Points à connaître sur les variables
+
+Cinq des huit variables initialement listées dans
+`docs/dictionnaire_variables.csv` se sont révélées mal identifiées après
+vérification directe sur les métadonnées du fichier et le questionnaire
+officiel (détail complet dans `docs/note_emploi_principal.md`). Le dictionnaire
+central a été corrigé en conséquence.
+
+Deux cas particuliers sont traités explicitement plutôt que d'être laissés
+implicites : l'éligibilité au module emploi (administré à partir de 10 ans,
+alors que la situation d'activité synthétique n'est calculée par l'ANSD qu'à
+partir de 15 ans) et le travail des enfants (10-14 ans avec un statut d'emploi
+renseigné, phénomène réel et non une anomalie).
+
 ## Utilisation
 
 Prérequis communs : la base fusionnée doit être placée dans `output/<PAYS>/`
@@ -118,12 +162,16 @@ Version Python :
 ```bash
 pip install -r requirements.txt
 python scripts/python/03_demographie_geo.py
+python scripts/python/03_emploi_principal.py
+python scripts/python/tests_emploi_principal.py       # optionnel : tests automatiques
+python scripts/python/03_emploi_principal_graphiques.py  # optionnel : graphiques
 ```
 
 Version Stata (Stata 14 ou plus, fichier encodé en UTF-8) :
 
 ```stata
 do scripts/stata/03_demographie_geo.do
+do scripts/stata/03_emploi_principal.do
 ```
 
 ## Changement de pays
@@ -139,4 +187,11 @@ donc ils suivent le pays automatiquement.
 
 - `docs/dictionnaire_variables_demo_geo.csv` : description de chaque variable de
   sortie du bloc démo/géo, sa source et son traitement.
-- `docs/note_demographie_geo.md` : note méthodologique du bloc.
+- `docs/note_demographie_geo.md` : note méthodologique du bloc démo/géo.
+- `docs/dictionnaire_variables_emploi_principal.csv` : description de chaque
+  variable de sortie du bloc emploi principal, sa source et son traitement.
+- `docs/note_emploi_principal.md` : note méthodologique du bloc emploi
+  principal, avec le détail des corrections apportées au dictionnaire initial.
+- `docs/standards_modules.md` : standard commun aux modules déjà livrés
+  (journal, codebook, tests, dictionnaire propre, note méthodologique), à
+  suivre pour les modules restants.
