@@ -125,12 +125,22 @@ CONFIG = {
         "avantage_protection_sociale": "AP16_21A",
         "avantage_conges_payes": "AP16_22A",
         "avantage_conges_maladie": "AP16_23A",
+
+        # sous-emploi lie a la duree du travail (definition officielle ANSD,
+        # chap. 1.5). Ces variables ne sont pas dans le bloc SE malgre ce que
+        # suggerait repartition.html, mais dans le bloc AP (heures) et R
+        # (chomage, bloc nominalement suivi par la Personne 4 - utilisees ici
+        # uniquement pour ce concept precis, a signaler pour eviter tout
+        # doublon de travail).
+        "raison_moins_40h": "AP11A",
+        "disponible_travailler_plus": "R3",
     },
 
     # Bornes de plausibilite (parametrables)
     "heures_semaine_max": 98,   # au dela : aberrant (14h/jour x 7)
     "revenu_mensuel_min": 1000,       # FCFA/mois, en dessous : suspect
     "revenu_mensuel_max": 5000000,    # FCFA/mois, au dela : suspect
+    "seuil_duree_legale_semaine": 40,  # heures/semaine, seuil du sous-emploi
 
     # Points milieu des tranches de revenu (AP13c), en milliers de FCFA.
     # La derniere tranche (>=3000) est ouverte : on retient la borne basse,
@@ -140,6 +150,19 @@ CONFIG = {
         9: 425, 10: 475, 11: 525, 12: 575, 13: 625, 14: 675, 15: 725,
         16: 775, 17: 825, 18: 875, 19: 950, 20: 1125, 21: 1375, 22: 1750,
         23: 2250, 24: 2750, 25: 3000,
+    },
+
+    # Libelles des variables categorielles construites par ce module (codes
+    # numeriques, jamais de texte brut dans les colonnes de sortie - meme
+    # convention que le module demographie/geographie)
+    "labels_type_emploi": {1: "Salarie", 2: "Independant"},
+    "labels_secteur_4cat": {1: "Primaire", 2: "Industrie", 3: "Commerce", 4: "Service"},
+    "labels_formalite": {1: "Formel", 2: "Informel"},
+    "labels_oui_non": {1: "Oui", 2: "Non"},
+    "labels_revenu_source": {
+        1: "Direct mensuel", 2: "Direct annuel (converti)",
+        3: "Tranche mensuelle", 4: "Tranche annuelle (convertie)",
+        5: "Refuse de dire", 6: "Ne sait pas",
     },
 }
 
@@ -244,10 +267,11 @@ def recoder_statut_emploi(df, cfg, meta):
     v = cfg["vars"]
     df["statut_emploi"] = df[v["statut_emploi"]]
 
+    # type_emploi code numerique + libelle (cf. cfg["labels_type_emploi"]) :
+    # 1 = salarie (statut 1-6, 10), 2 = independant (statut 7-9)
     correspondance_type = {
-        1: "salarie", 2: "salarie", 3: "salarie", 4: "salarie",
-        5: "salarie", 6: "salarie", 10: "salarie",
-        7: "independant", 8: "independant", 9: "independant",
+        1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 10: 1,
+        7: 2, 8: 2, 9: 2,
     }
     df["type_emploi"] = df["statut_emploi"].map(correspondance_type)
 
@@ -255,7 +279,8 @@ def recoder_statut_emploi(df, cfg, meta):
     n_manquant = int(df["statut_emploi"].isna().sum())
     print(f"  statut emploi : {n_manquant}/{n_total} manquant structurel (non occupe)")
     print("  repartition type d'emploi (parmi occupes) :")
-    print(df["type_emploi"].value_counts(dropna=False, normalize=True).mul(100).round(1).to_string())
+    print(df["type_emploi"].map(cfg["labels_type_emploi"])
+          .value_counts(dropna=False, normalize=True).mul(100).round(1).to_string())
 
     return df
 
@@ -277,8 +302,9 @@ def recoder_branche(df, cfg, meta):
     v = cfg["vars"]
     df["secteur_isic_principal"] = df[v["branche"]]
 
-    # Regroupement Primaire/Industrie/Commerce/Service, calque sur celui du
-    # rapport final ANSD (tableau 5.18) :
+    # Regroupement Primaire(1)/Industrie(2)/Commerce(3)/Service(4), calque
+    # sur celui du rapport final ANSD (tableau 5.18) - code numerique +
+    # libelle (cfg["labels_secteur_4cat"]) :
     #   Primaire  : Agriculture/sylviculture/peche (1)
     #   Industrie : extractives, fabrication, electricite/gaz, eau/dechets,
     #               construction (2,3,4,5,6)
@@ -286,17 +312,17 @@ def recoder_branche(df, cfg, meta):
     #   Service   : tout le reste (transports, hebergement, information,
     #               finance, immobilier, services divers, administration,
     #               enseignement, sante, arts, menages, extraterritoriales)
-    correspondance_4cat = {1: "Primaire"}
-    correspondance_4cat.update({c: "Industrie" for c in [2, 3, 4, 5, 6]})
-    correspondance_4cat[7] = "Commerce"
-    correspondance_4cat.update({c: "Service" for c in range(8, 22)})
+    correspondance_4cat = {1: 1}
+    correspondance_4cat.update({c: 2 for c in [2, 3, 4, 5, 6]})
+    correspondance_4cat[7] = 3
+    correspondance_4cat.update({c: 4 for c in range(8, 22)})
     df["secteur_isic_principal_4cat"] = df["secteur_isic_principal"].map(correspondance_4cat)
 
     n_total = len(df)
     n_manquant = int(df["secteur_isic_principal"].isna().sum())
     print(f"  branche d'activite : {n_manquant}/{n_total} manquant structurel (non occupe)")
     print("  repartition 4 familles (parmi occupes) :")
-    presents = df["secteur_isic_principal_4cat"].dropna()
+    presents = df["secteur_isic_principal_4cat"].map(cfg["labels_secteur_4cat"]).dropna()
     print(presents.value_counts(normalize=True).mul(100).round(1).to_string())
 
     return df
@@ -349,6 +375,51 @@ def recoder_heures_travail(df, cfg, meta):
     return df
 
 
+def recoder_sous_emploi(df, cfg, meta):
+    """
+    Sous-emploi lie a la duree du travail, definition officielle ANSD
+    (chap. 1.5) : une personne en emploi qui remplit les trois criteres
+    suivants - i) travaille involontairement moins que la duree legale
+    (40h/semaine), ii) disponible pour travailler plus et/ou iii) a la
+    recherche d'un travail supplementaire.
+
+    Faute d'une variable directe pour le critere (iii) dans le perimetre
+    inspecte, on retient (i) et (ii) uniquement - la definition officielle
+    utilise "et/ou" entre (ii) et (iii), donc (ii) seul reste une
+    application valide, documentee comme simplification.
+      i)   heures_semaine_principal < seuil legal (40h)
+      ii)  disponible pour travailler plus (R3 == 1)
+      involontaire = raison economique (AP11A == 3, "Moins de travail du a
+      la mauvaise conjoncture"), le proxy standard pour l'involontaire dans
+      ce type d'enquete.
+    """
+    v = cfg["vars"]
+    seuil = cfg["seuil_duree_legale_semaine"]
+
+    heures = df["heures_semaine_principal"]
+    # Involontaire au sens large : horaire fixe par la loi/l'employeur (2) ou
+    # mauvaise conjoncture (3) - exclut le choix personnel (1: ne veut pas
+    # travailler plus, 4: probleme personnel), plus proche du sens ILO/BIT
+    # que la seule raison economique stricte.
+    involontaire = df[v["raison_moins_40h"]].isin([2, 3])
+    disponible_plus = df[v["disponible_travailler_plus"]] == 1
+
+    eligible = heures.notna()
+    sous_emploi = eligible & (heures < seuil) & involontaire.fillna(False) & disponible_plus.fillna(False)
+
+    # code numerique + libelle (cfg["labels_oui_non"]) : 1 = oui, 2 = non
+    df["sous_emploi_duree"] = pd.Series(np.nan, index=df.index, dtype="float")
+    df.loc[eligible, "sous_emploi_duree"] = 2
+    df.loc[sous_emploi, "sous_emploi_duree"] = 1
+
+    n_eligible = int(eligible.sum())
+    n_sous_emploi = int(sous_emploi.sum())
+    print(f"  sous-emploi (duree) : {n_sous_emploi}/{n_eligible} occupes avec heures "
+          f"renseignees ({100 * n_sous_emploi / n_eligible:.1f}%)")
+
+    return df
+
+
 def recoder_revenu(df, cfg, meta):
     """
     Revenu de l'emploi principal, consolide selon le routage AP13a confirme
@@ -385,18 +456,16 @@ def recoder_revenu(df, cfg, meta):
     revenu = revenu.mask(aberrant, np.nan)
 
     df["revenu_principal_mensuel_fcfa"] = revenu
-    df["revenu_source"] = mode.map({
-        1: "direct_mensuel", 2: "direct_annuel_convertit",
-        3: "tranche_mensuelle", 4: "tranche_annuelle_convertie",
-        5: "refuse", 6: "ne_sait_pas",
-    })
+    # revenu_source reprend directement le code AP13a (deja porteur de sens),
+    # libelle dans cfg["labels_revenu_source"]
+    df["revenu_source"] = mode
 
     n_total = len(df)
     n_manquant = int(df["revenu_principal_mensuel_fcfa"].isna().sum())
     print(f"  revenu : {n_manquant}/{n_total} manquant (structurel + refus/NSP + "
           f"{int(aberrant.sum())} aberrant(s) neutralise(s))")
     print("  repartition source du revenu (parmi occupes) :")
-    print(df["revenu_source"].value_counts(dropna=False).to_string())
+    print(df["revenu_source"].map(cfg["labels_revenu_source"]).value_counts(dropna=False).to_string())
     print("  statistiques revenu mensuel consolide (FCFA, apres nettoyage) :")
     print(df["revenu_principal_mensuel_fcfa"].dropna().describe().to_string())
     print("  reference rapport ANSD : moyenne Senegal 125 485 FCFA/mois "
@@ -433,11 +502,12 @@ def recoder_formalite(df, cfg, meta):
     non_enregistre = df[v["regime_fiscal"]] == 3
     non_comptabilite = df[v["comptabilite_formelle"]].isin([1, 3])
 
-    formalite_unite = pd.Series(np.nan, index=df.index, dtype="object")
+    # code numerique + libelle (cfg["labels_formalite"]) : 1 = formel, 2 = informel
+    formalite_unite = pd.Series(np.nan, index=df.index, dtype="float")
     informel_unite = marchande & (non_enregistre | non_comptabilite)
     formel_unite = marchande & ~(non_enregistre | non_comptabilite)
-    formalite_unite = formalite_unite.mask(informel_unite, "informel")
-    formalite_unite = formalite_unite.mask(formel_unite, "formel")
+    formalite_unite = formalite_unite.mask(informel_unite, 2)
+    formalite_unite = formalite_unite.mask(formel_unite, 1)
     df["formalite_unite"] = formalite_unite
 
     a_protection = df[v["avantage_protection_sociale"]] == 1
@@ -447,17 +517,17 @@ def recoder_formalite(df, cfg, meta):
                                  & df[v["avantage_conges_payes"]].notna()
                                  & df[v["avantage_conges_maladie"]].notna())
 
-    formalite_emploi = pd.Series(np.nan, index=df.index, dtype="object")
+    formalite_emploi = pd.Series(np.nan, index=df.index, dtype="float")
     informel_emploi = trois_criteres_renseignes & ~(a_protection & a_conges_payes & a_conges_maladie)
     formel_emploi = trois_criteres_renseignes & (a_protection & a_conges_payes & a_conges_maladie)
-    formalite_emploi = formalite_emploi.mask(informel_emploi, "informel")
-    formalite_emploi = formalite_emploi.mask(formel_emploi, "formel")
+    formalite_emploi = formalite_emploi.mask(informel_emploi, 2)
+    formalite_emploi = formalite_emploi.mask(formel_emploi, 1)
     df["formalite_emploi"] = formalite_emploi
 
     print("  formalite de l'unite (parmi unites concernees) :")
-    print(df["formalite_unite"].value_counts(dropna=False).to_string())
+    print(df["formalite_unite"].map(cfg["labels_formalite"]).value_counts(dropna=False).to_string())
     print("  formalite de l'emploi (parmi salaries avec bloc avantages renseigne) :")
-    print(df["formalite_emploi"].value_counts(dropna=False).to_string())
+    print(df["formalite_emploi"].map(cfg["labels_formalite"]).value_counts(dropna=False).to_string())
 
     return df
 
@@ -483,6 +553,7 @@ def main():
     df = recoder_statut_emploi(df, cfg, meta)
     df = recoder_branche(df, cfg, meta)
     df = recoder_heures_travail(df, cfg, meta)
+    df = recoder_sous_emploi(df, cfg, meta)
     df = recoder_revenu(df, cfg, meta)
     df = recoder_formalite(df, cfg, meta)
 
