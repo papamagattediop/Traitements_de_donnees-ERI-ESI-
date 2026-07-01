@@ -1,5 +1,5 @@
 *==============================================================================*
-*  ERI-ESI : bloc démographie et géographie des individus (Personne 2)
+*  ERI-ESI : bloc démographie et géographie des individus
 *  Version Stata du module scripts/python/03_demographie_geo.py
 *
 *  Ce script prend la base individuelle fusionnée (roster + emploi) venue du
@@ -12,7 +12,6 @@
 *      do scripts/stata/03_demographie_geo.do
 *==============================================================================*
 
-version 14
 clear all
 set more off
 

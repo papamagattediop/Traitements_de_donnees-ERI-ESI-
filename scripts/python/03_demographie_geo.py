@@ -1,5 +1,5 @@
 """
-ERI-ESI : module Demographie et Geographie des individus (Personne 2)
+ERI-ESI : module Demographie et Geographie des individus
 ====================================================================
 
 Role dans le pipeline
@@ -26,7 +26,7 @@ ou absence du departement). La logique de recodage et de nettoyage reste
 inchangee. Les libelles des modalites sont lus directement dans les metadonnees
 du fichier .dta, donc ils suivent automatiquement le pays.
 
-Auteur : Personne 2
+Auteur : Awa GUEYE
 """
 
 import os
