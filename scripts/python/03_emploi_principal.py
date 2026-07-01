@@ -131,6 +131,16 @@ CONFIG = {
     "heures_semaine_max": 98,   # au dela : aberrant (14h/jour x 7)
     "revenu_mensuel_min": 1000,       # FCFA/mois, en dessous : suspect
     "revenu_mensuel_max": 5000000,    # FCFA/mois, au dela : suspect
+
+    # Points milieu des tranches de revenu (AP13c), en milliers de FCFA.
+    # La derniere tranche (>=3000) est ouverte : on retient la borne basse,
+    # ce qui sous-estime volontairement plutot que de deviner un plafond.
+    "tranches_revenu_milliers": {
+        1: 17.5, 2: 67.5, 3: 125, 4: 175, 5: 225, 6: 275, 7: 325, 8: 375,
+        9: 425, 10: 475, 11: 525, 12: 575, 13: 625, 14: 675, 15: 725,
+        16: 775, 17: 825, 18: 875, 19: 950, 20: 1125, 21: 1375, 22: 1750,
+        23: 2250, 24: 2750, 25: 3000,
+    },
 }
 
 
@@ -339,9 +349,123 @@ def recoder_heures_travail(df, cfg, meta):
     return df
 
 
+def recoder_revenu(df, cfg, meta):
+    """
+    Revenu de l'emploi principal, consolide selon le routage AP13a confirme
+    par le questionnaire (le dictionnaire initial pointait a tort vers
+    AP8A1, qui est l'anciennete dans l'emploi) :
+      - AP13a=1 : AP13b est deja un montant mensuel direct
+      - AP13a=2 : AP13b est un montant annuel direct -> divise par 12
+      - AP13a=3 : AP13c est une tranche mensuelle -> point milieu de la tranche
+      - AP13a=4 : AP13c est une tranche annuelle -> point milieu / 12
+      - AP13a=5 ou 6 (refus / ne sait pas) : revenu non renseigne, signale
+        par un flag dedie, jamais impute (cf. echange sur l'imputation :
+        ce n'est ni un manquant structurel ni un cas a deviner)
+
+    Nettoyage : apres consolidation en FCFA/mois, les valeurs hors bornes de
+    plausibilite sont neutralisees et signalees (des valeurs observees comme
+    "2 FCFA/mois" ou "10 milliards FCFA/mois" ne peuvent pas etre de vrais
+    montants).
+    """
+    v = cfg["vars"]
+    mode = df[v["revenu_mode"]]
+    montant_direct = df[v["revenu_montant"]]
+    tranche = df[v["revenu_tranche"]].map(cfg["tranches_revenu_milliers"]) * 1000
+
+    revenu = pd.Series(np.nan, index=df.index, dtype="float")
+    revenu = revenu.where(mode != 1, montant_direct)
+    revenu = revenu.where(mode != 2, montant_direct / 12)
+    revenu = revenu.where(mode != 3, tranche)
+    revenu = revenu.where(mode != 4, tranche / 12)
+
+    df["flag_revenu_non_renseigne"] = mode.isin([5, 6]).astype("int8")
+
+    aberrant = (revenu < cfg["revenu_mensuel_min"]) | (revenu > cfg["revenu_mensuel_max"])
+    df["flag_revenu_aberrant"] = aberrant.fillna(False).astype("int8")
+    revenu = revenu.mask(aberrant, np.nan)
+
+    df["revenu_principal_mensuel_fcfa"] = revenu
+    df["revenu_source"] = mode.map({
+        1: "direct_mensuel", 2: "direct_annuel_convertit",
+        3: "tranche_mensuelle", 4: "tranche_annuelle_convertie",
+        5: "refuse", 6: "ne_sait_pas",
+    })
+
+    n_total = len(df)
+    n_manquant = int(df["revenu_principal_mensuel_fcfa"].isna().sum())
+    print(f"  revenu : {n_manquant}/{n_total} manquant (structurel + refus/NSP + "
+          f"{int(aberrant.sum())} aberrant(s) neutralise(s))")
+    print("  repartition source du revenu (parmi occupes) :")
+    print(df["revenu_source"].value_counts(dropna=False).to_string())
+    print("  statistiques revenu mensuel consolide (FCFA, apres nettoyage) :")
+    print(df["revenu_principal_mensuel_fcfa"].dropna().describe().to_string())
+    print("  reference rapport ANSD : moyenne Senegal 125 485 FCFA/mois "
+          "(non pondere ici, a comparer une fois l'estimation ponderee faite)")
+
+    return df
+
+
+def recoder_formalite(df, cfg, meta):
+    """
+    Deux indicateurs de formalite distincts, definis officiellement dans le
+    rapport final ANSD (chapitre 1.5) - pas un indice compose invente :
+
+    1) Formalite de l'UNITE (secteur informel au sens ANSD/BIT) : une unite
+       marchande (AP6E) est informelle si au moins un des deux criteres
+       suivants n'est pas rempli : enregistrement fiscal (AP6A) et tenue
+       d'une comptabilite formelle (AP6D). Les unites non marchandes sont
+       hors champ de cette classification (non applicable), pas "formelles"
+       par defaut.
+       Codes reels verifies dans les metadonnees (different de l'ordre du
+       questionnaire papier) : AP6A - {1,2,4}=regime fiscal donc enregistre,
+       3=ne paie pas d'impot ; AP6D - 2=comptabilite formelle OHADA, {1,3}=non.
+
+    2) Formalite de l'EMPLOI : un salarie est en emploi informel si au moins
+       un des trois avantages suivants lui est refuse : cotisations de
+       protection sociale payees par l'employeur (AP16_21A), conges annuels
+       payes (AP16_22A), conges maladie remuneres (AP16_23A). Ce bloc n'est
+       administre qu'aux salaries (structurellement absent pour les
+       independants) : formalite_emploi reste non applicable pour eux.
+    """
+    v = cfg["vars"]
+
+    marchande = df[v["activite_marchande"]].isin([1, 2])
+    non_enregistre = df[v["regime_fiscal"]] == 3
+    non_comptabilite = df[v["comptabilite_formelle"]].isin([1, 3])
+
+    formalite_unite = pd.Series(np.nan, index=df.index, dtype="object")
+    informel_unite = marchande & (non_enregistre | non_comptabilite)
+    formel_unite = marchande & ~(non_enregistre | non_comptabilite)
+    formalite_unite = formalite_unite.mask(informel_unite, "informel")
+    formalite_unite = formalite_unite.mask(formel_unite, "formel")
+    df["formalite_unite"] = formalite_unite
+
+    a_protection = df[v["avantage_protection_sociale"]] == 1
+    a_conges_payes = df[v["avantage_conges_payes"]] == 1
+    a_conges_maladie = df[v["avantage_conges_maladie"]] == 1
+    trois_criteres_renseignes = (df[v["avantage_protection_sociale"]].notna()
+                                 & df[v["avantage_conges_payes"]].notna()
+                                 & df[v["avantage_conges_maladie"]].notna())
+
+    formalite_emploi = pd.Series(np.nan, index=df.index, dtype="object")
+    informel_emploi = trois_criteres_renseignes & ~(a_protection & a_conges_payes & a_conges_maladie)
+    formel_emploi = trois_criteres_renseignes & (a_protection & a_conges_payes & a_conges_maladie)
+    formalite_emploi = formalite_emploi.mask(informel_emploi, "informel")
+    formalite_emploi = formalite_emploi.mask(formel_emploi, "formel")
+    df["formalite_emploi"] = formalite_emploi
+
+    print("  formalite de l'unite (parmi unites concernees) :")
+    print(df["formalite_unite"].value_counts(dropna=False).to_string())
+    print("  formalite de l'emploi (parmi salaries avec bloc avantages renseigne) :")
+    print(df["formalite_emploi"].value_counts(dropna=False).to_string())
+
+    return df
+
+
 # ----------------------------------------------------------------------------
-# Orchestration (etapes de recodage restantes ajoutees dans les prochains
-# commits : revenu, formalite)
+# Orchestration : toutes les etapes de recodage thematique sont posees.
+# Reste a venir : assemblage de la sortie, controles de coherence globaux,
+# estimations ponderees, ecriture des fichiers.
 # ----------------------------------------------------------------------------
 
 def main():
@@ -359,9 +483,11 @@ def main():
     df = recoder_statut_emploi(df, cfg, meta)
     df = recoder_branche(df, cfg, meta)
     df = recoder_heures_travail(df, cfg, meta)
+    df = recoder_revenu(df, cfg, meta)
+    df = recoder_formalite(df, cfg, meta)
 
     print("-" * 64)
-    print("Etape heures de travail OK. Suite a venir dans les prochains commits.")
+    print("Tous les blocs thematiques sont poses. Suite : assemblage et QAQC.")
 
 
 if __name__ == "__main__":
