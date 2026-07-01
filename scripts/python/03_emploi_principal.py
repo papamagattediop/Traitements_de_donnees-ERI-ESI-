@@ -92,6 +92,10 @@ CONFIG = {
         "id_menage": "hh2",
         "id_ordre": "m1",
         "poids_emploi": "weightemploy",
+        # age de reference (M4, bloc Personne 2) - utilise uniquement ici
+        # pour reperer le travail des enfants (10-14 ans), pas reexporte
+        # comme variable demographique (deja du ressort de la Personne 2)
+        "age_reference": "M4",
 
         # situation d'activite
         "sitac": "sitac",
@@ -228,6 +232,14 @@ def recoder_situation_activite(df, cfg, meta):
     est en realite la disponibilite (cf. note_emploi_principal.md). La vraie
     raison d'inactivite est SE11, reprise ici, structurellement renseignee
     seulement chez les inactifs (sitac==4).
+
+    Eligibilite au module emploi (eligible_module_emploi) : le questionnaire
+    emploi est administre a partir de 10 ans, mais sitac (situation
+    d'activite synthetique) n'est calcule par l'ANSD qu'a partir de 15 ans -
+    d'ou un grand nombre de lignes structurellement vides sur tout le bloc
+    au-dela des seuls "moins de 15 ans". Ce flag (base sur la presence du
+    poids emploi, weightemploy) rend cette eligibilite explicite plutot que
+    de laisser deviner pourquoi une ligne est entierement vide.
     """
     v = cfg["vars"]
     df["situation_activite"] = df[v["sitac"]]
@@ -237,12 +249,17 @@ def recoder_situation_activite(df, cfg, meta):
 
     df["raison_inactivite"] = df[v["raison_inactivite"]]
 
+    # code numerique + libelle (cfg["labels_oui_non"])
+    df["eligible_module_emploi"] = df[v["poids_emploi"]].notna().map({True: 1, False: 2})
+
     n_total = len(df)
     n_manquant_structurel = int(df["situation_activite"].isna().sum())
     print(f"  situation d'activite : {n_manquant_structurel}/{n_total} manquant "
           f"structurel (moins de 15 ans)")
     print("  repartition (regroupe) :")
     print(df["situation_activite_grp"].value_counts(dropna=False).sort_index().to_string())
+    n_eligibles = int((df["eligible_module_emploi"] == 1).sum())
+    print(f"  eligibles au module emploi (10 ans et plus) : {n_eligibles}/{n_total}")
 
     inactifs = df["situation_activite"] == 4
     n_inactifs = int(inactifs.sum())
@@ -267,6 +284,14 @@ def recoder_statut_emploi(df, cfg, meta):
       - 7, 8, 9 (employeur, compte propre, aide familial) -> independant
     Manquant structurel = non occupe (memes 91676 lignes que les autres
     variables du bloc AP).
+
+    Travail des enfants (flag_travail_enfant_10_14) : sitac n'etant calcule
+    par l'ANSD qu'a partir de 15 ans, les 10-14 ans qui travaillent
+    n'apparaissent jamais comme "occupes" (situation_activite==1) meme
+    quand AP3 est bel et bien renseigne pour eux (932 cas verifies). Ce
+    n'est pas une incoherence a corriger mais un phenomene reel a signaler
+    explicitement plutot que de le laisser se fondre dans les donnees ou
+    d'etre lu a tort comme une erreur.
     """
     v = cfg["vars"]
     df["statut_emploi"] = df[v["statut_emploi"]]
@@ -279,9 +304,15 @@ def recoder_statut_emploi(df, cfg, meta):
     }
     df["type_emploi"] = df["statut_emploi"].map(correspondance_type)
 
+    enfant_10_14 = df[v["age_reference"]].between(10, 14)
+    travail_enfant = enfant_10_14 & df["statut_emploi"].notna()
+    df["flag_travail_enfant_10_14"] = travail_enfant.astype("int8")
+
     n_total = len(df)
     n_manquant = int(df["statut_emploi"].isna().sum())
     print(f"  statut emploi : {n_manquant}/{n_total} manquant structurel (non occupe)")
+    print(f"  travail des enfants (10-14 ans avec statut emploi renseigne) : "
+          f"{int(df['flag_travail_enfant_10_14'].sum())} cas")
     print("  repartition type d'emploi (parmi occupes) :")
     print(df["type_emploi"].map(cfg["labels_type_emploi"])
           .value_counts(dropna=False, normalize=True).mul(100).round(1).to_string())
@@ -551,6 +582,7 @@ def construire_sortie(df, cfg):
     sortie["id_ordre"] = df[v["id_ordre"]]
     sortie["id_men"] = df["id_men"]
     sortie["poids_emploi"] = df[v["poids_emploi"]]
+    sortie["eligible_module_emploi"] = df["eligible_module_emploi"]
 
     sortie["situation_activite"] = df["situation_activite"]
     sortie["situation_activite_grp"] = df["situation_activite_grp"]
@@ -558,6 +590,7 @@ def construire_sortie(df, cfg):
 
     sortie["statut_emploi"] = df["statut_emploi"]
     sortie["type_emploi"] = df["type_emploi"]
+    sortie["flag_travail_enfant_10_14"] = df["flag_travail_enfant_10_14"]
 
     sortie["secteur_isic_principal"] = df["secteur_isic_principal"]
     sortie["secteur_isic_principal_4cat"] = df["secteur_isic_principal_4cat"]
@@ -589,6 +622,7 @@ def libelles_sortie(cfg, meta):
         "statut_emploi": libelles_valeurs(meta, v["statut_emploi"]),
         "secteur_isic_principal": libelles_valeurs(meta, v["branche"]),
         # construits par ce module
+        "eligible_module_emploi": cfg["labels_oui_non"],
         "situation_activite_grp": cfg["labels_situation_activite_grp"],
         "type_emploi": cfg["labels_type_emploi"],
         "secteur_isic_principal_4cat": cfg["labels_secteur_4cat"],
@@ -602,11 +636,13 @@ def libelles_sortie(cfg, meta):
         "id_grappe": "Grappe", "id_menage": "Numero de menage",
         "id_ordre": "Numero d'ordre", "id_men": "Identifiant menage",
         "poids_emploi": "Poids de sondage (emploi)",
+        "eligible_module_emploi": "Eligible au module emploi (10 ans et plus)",
         "situation_activite": "Situation d'activite (code source)",
         "situation_activite_grp": "Situation d'activite (regroupee)",
         "raison_inactivite": "Raison d'inactivite",
         "statut_emploi": "Statut dans l'emploi principal (categorie socioprofessionnelle)",
         "type_emploi": "Type d'emploi (salarie/independant)",
+        "flag_travail_enfant_10_14": "Travail des enfants (10-14 ans avec statut emploi renseigne)",
         "secteur_isic_principal": "Secteur/branche d'activite (ISIC Rev.4, 21 sections)",
         "secteur_isic_principal_4cat": "Secteur d'activite (4 familles)",
         "heures_semaine_principal": "Heures travaillees par semaine (emploi principal)",
@@ -643,8 +679,18 @@ def controles_coherence(df, cfg):
 
     ajouter("occupes sans statut_emploi renseigne",
             int((occupe & df["statut_emploi"].isna()).sum()), "doit etre nul ou tres faible")
-    ajouter("statut_emploi renseigne chez des non-occupes",
-            int((~occupe & df["statut_emploi"].notna()).sum()), "doit valoir 0")
+
+    # Distinguer la vraie anomalie (adulte non-occupe avec statut renseigne)
+    # du travail des enfants (10-14 ans, non couverts par sitac mais bel et
+    # bien en emploi selon AP3 - cf. flag_travail_enfant_10_14)
+    statut_hors_occupe = ~occupe & df["statut_emploi"].notna()
+    travail_enfant = df["flag_travail_enfant_10_14"] == 1
+    ajouter("statut_emploi renseigne chez des non-occupes ADULTES (hors travail enfants)",
+            int((statut_hors_occupe & ~travail_enfant).sum()), "doit valoir 0")
+    ajouter("travail des enfants (10-14 ans, hors champ de sitac mais AP3 renseigne)",
+            int(travail_enfant.sum()),
+            "pas une anomalie : sitac exclut les moins de 15 ans par convention ANSD")
+
     ajouter("occupes sans secteur_isic_principal renseigne",
             int((occupe & df["secteur_isic_principal"].isna()).sum()), "a verifier")
 
