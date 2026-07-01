@@ -13,16 +13,17 @@ hhweight,individus,hhweight,menage,Poids menage,Personne4
 sexe,individus,M3,demographie,Sexe de l'individu,Personne2
 age,individus,M4,demographie,Age de l'individu,Personne2
 lien_cm,individus,M2,demographie,Lien de parente avec le CM,Personne2
-situation_matrimoniale,individus,M5,demographie,Situation matrimoniale,Personne2
+situation_matrimoniale,individus,M25,demographie,Situation matrimoniale (M5 est en realite le lieu de naissance - cf. docs/note_demographie_geo.md),Personne2
 niveau_etudes,individus,M19a,education,Niveau d'etudes atteint,Personne2
 branche_etudes,individus,M19b,education,Branche d'etudes (si applicable),Personne2
 sitac,emploi,sitac,emploi,Situation d'activite synthetique,Personne3
 statut_emploi_principal,emploi,AP3,emploi_principal,Statut dans l'emploi principal (salarie/independant),Personne3
-secteur_isic_principal,emploi,AP4,emploi_principal,Secteur d'activite ISIC Rev4 - emploi principal,Personne3
-revenu_principal,emploi,AP8A1,emploi_principal,Revenu de l'emploi principal,Personne3
-heures_travail_principal,emploi,AP6A,emploi_principal,Nombre d'heures travaillees - emploi principal,Personne3
-formalite_principal,emploi,AP7,emploi_principal,Formalite de l'emploi/unite principal,Personne3
-raison_inactivite,emploi,SE9,situation_activite,Raison d'inactivite si inactif,Personne3
+secteur_isic_principal,emploi,AP2_Niv1,emploi_principal,Secteur/branche d'activite ISIC Rev4 (21 sections deja agregees) - AP4 est en realite le secteur institutionnel (cf. docs/note_emploi_principal.md),Personne3
+revenu_principal,emploi,AP13A;AP13B;AP13C,emploi_principal,Revenu mensuel consolide de l'emploi principal (routage selon AP13A) - AP8A1 est en realite l'anciennete dans l'emploi,Personne3
+heures_travail_principal,emploi,AP10C,emploi_principal,Heures travaillees par semaine - emploi principal - AP6A est en realite le regime fiscal,Personne3
+formalite_unite,emploi,AP6A;AP6D;AP6E,emploi_principal,Formalite de l'unite de production (secteur informel ANSD) - AP7 est en realite le lieu de travail,Personne3
+formalite_emploi,emploi,AP16_21A;AP16_22A;AP16_23A,emploi_principal,Formalite de l'emploi (avantages employeur - salaries uniquement),Personne3
+raison_inactivite,emploi,SE11,situation_activite,Raison d'inactivite si inactif - SE9 est en realite la disponibilite a travailler,Personne3
 existence_emploi_secondaire,emploi,AS1A,emploi_secondaire,Existence d'un emploi secondaire,Personne4
 secteur_isic_secondaire,emploi,AS3_BRA2,emploi_secondaire,Secteur d'activite ISIC Rev4 - emploi secondaire (AS1),Personne4
 heures_travail_secondaire,emploi,AS4_AS1,emploi_secondaire,Heures travaillees - emploi secondaire (AS1) a verifier,Personne4
