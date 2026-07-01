@@ -1,3 +1,5 @@
 pandas>=2.0
 pyreadstat>=1.2
 numpy>=1.24
+matplotlib>=3.7
+missingno>=0.5
