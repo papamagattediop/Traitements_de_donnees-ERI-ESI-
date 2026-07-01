@@ -1,5 +1,5 @@
 *==============================================================================*
-*  ERI-ESI : bloc démographie et géographie des individus 
+*  ERI-ESI : bloc démographie et géographie des individus (Personne 2)
 *  Version Stata du module scripts/python/03_demographie_geo.py
 *
 *  Ce script prend la base individuelle fusionnée (roster + emploi) venue du
@@ -7,10 +7,12 @@
 *  géographiques au niveau individu. Sa sortie, individus_demo_geo.dta, nourrit
 *  la démographie du chef de ménage et l'assemblage final.
 *
-
+*  Le fichier est encodé en UTF-8 (Stata 14 ou plus).
+*  L'exécution se fait depuis la racine du dépôt :
+*      do scripts/stata/03_demographie_geo.do
 *==============================================================================*
 
-
+version 14
 clear all
 set more off
 
@@ -33,6 +35,32 @@ use "$DOSSIER_OUT/$FICHIER_BASE", clear
 display as text "  base chargée : " _N " lignes"
 
 *------------------------------------------------------------------------------*
+* Un journal d'exécution garde une trace datée de tout ce qui se passe ici.
+*------------------------------------------------------------------------------*
+capture mkdir "output"
+capture mkdir "$DOSSIER_OUT"
+capture log close _all
+log using "$DOSSIER_OUT/journal_demo_geo.log", replace text
+
+*------------------------------------------------------------------------------*
+* Avant tout traitement, la présence des variables attendues est vérifiée. Si
+* l'une manque, un message clair désigne laquelle, et l'exécution s'arrête là,
+* plutôt que de laisser survenir plus loin une erreur difficile à lire. C'est ce
+* qui permet d'accueillir proprement le fichier d'un autre pays.
+*------------------------------------------------------------------------------*
+local attendues "hh1 hh2 m1 hhweight hhsize M3 M4 M2 M25 M13 M15 M16a M20a M19a Region MILIEU"
+foreach var of local attendues {
+    capture confirm variable `var'
+    if _rc {
+        display as error "Variable attendue absente du fichier : `var'."
+        display as error "Le bloc de correspondance (rename) doit être adapté pour ce pays."
+        log close
+        error 111
+    }
+}
+display as text "  validation colonnes : variables requises présentes"
+
+*------------------------------------------------------------------------------*
 * Les noms propres au pays deviennent ici des noms internes stables. C'est le
 * seul endroit vraiment sensible au pays : les valeurs, elles, sont harmonisées
 * d'un pays ERI-ESI à l'autre, donc la suite du recodage reste valable partout.
@@ -46,7 +74,7 @@ gen str20 id_men = string(id_grappe) + "_" + string(id_menage)
 
 *------------------------------------------------------------------------------*
 * Sexe. Le sexe du roster est complet, donc il fait foi. Celui du module emploi,
-* posé aux 15 ans et plus, sert seulement de témoin : là où les deux se
+* posé aux quinze ans et plus, sert seulement de témoin : là où les deux se
 * contredisent, un drapeau le signale, mais la référence n'est jamais écrasée.
 *------------------------------------------------------------------------------*
 gen byte flag_sexe_incoherent = (!missing(sexe) & !missing(sexe_emp) & sexe != sexe_emp)
@@ -148,7 +176,8 @@ gen departement = .
 display as text "  géographie : région et milieu recodés, département absent (non collecté ici)"
 
 *------------------------------------------------------------------------------*
-* Les variables reprises du fichier gardent leurs étiquettes d'origine ;
+* Libellés. Les modalités portent les accents, pour une lecture directe dans
+* Stata. Les variables reprises du fichier gardent leurs étiquettes d'origine ;
 * seules les variables construites reçoivent de nouvelles étiquettes.
 *------------------------------------------------------------------------------*
 label define lbl_groupe_age 1 "0-4 ans" 2 "5-9 ans" 3 "10-14 ans" 4 "15-24 ans" ///
@@ -237,9 +266,6 @@ local q_lien = r(N)
 quietly count if flag_sexe_incoherent == 1
 local q_des = r(N)
 
-capture mkdir "output"
-capture mkdir "$DOSSIER_OUT"
-
 file open qc using "$DOSSIER_OUT/qc_demo_geo.csv", write replace
 file write qc "controle,nombre,detail" _n
 file write qc "menages avec un nombre de CM different de 1," (`qc1') ",doit valoir 0" _n
@@ -314,7 +340,10 @@ display as text "{hline 64}"
 display as text "Table individus écrite : $DOSSIER_OUT/individus_demo_geo.dta (" _N " lignes)"
 display as text "Contrôles       -> $DOSSIER_OUT/qc_demo_geo.csv"
 display as text "Estimations     -> $DOSSIER_OUT/estimations_demo_geo.csv"
+display as text "Journal         -> $DOSSIER_OUT/journal_demo_geo.log"
 display as text "Terminé."
+
+capture log close
 
 *==============================================================================*
 * Fin du module.
