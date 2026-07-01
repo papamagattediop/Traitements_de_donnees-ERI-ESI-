@@ -1,0 +1,25 @@
+variable_sortie,libelle,type,source,traitement
+id_grappe,Grappe,identifiant,hh1,repris tel quel
+id_menage,Numero de menage,identifiant,hh2,repris tel quel
+id_ordre,Numero d'ordre,identifiant,m1,repris tel quel
+id_men,Identifiant menage,identifiant,hh1 + hh2,concatenation grappe et numero de menage
+poids_emploi,Poids de sondage (emploi),numerique,weightemploy,repris tel quel (pas hhweight, qui est le poids menage)
+eligible_module_emploi,Eligible au module emploi (10 ans et plus),categoriel,weightemploy,1 si weightemploy renseigne (questionnaire emploi administre a partir de 10 ans) sinon 2
+situation_activite,Situation d'activite (code source),categoriel,sitac,repris tel quel; deja calcule par l'ANSD (non structurellement renseigne avant 15 ans)
+situation_activite_grp,Situation d'activite (regroupee),categoriel,sitac,regroupe en 4 postes: actif occupe / chomeur BIT / main d'oeuvre potentielle (fusion codes 31-32-33) / inactif
+raison_inactivite,Raison d'inactivite,categoriel,SE11,le dictionnaire initial indiquait a tort SE9 (qui est en realite la disponibilite); renseigne structurellement chez les inactifs (situation_activite==4)
+statut_emploi,Statut dans l'emploi principal (categorie socioprofessionnelle),categoriel,AP3,repris tel quel; confirme correct des le depart
+type_emploi,Type d'emploi (salarie/independant),categoriel,AP3,derive du regroupement du questionnaire (statuts 1-6-10 = salarie; 7-8-9 = independant)
+flag_travail_enfant_10_14,Travail des enfants (10-14 ans avec statut emploi renseigne),indicateur,AP3 + M4,1 si age entre 10 et 14 ans et statut_emploi renseigne; phenomene reel (sitac exclut les moins de 15 ans par convention ANSD) pas une anomalie
+secteur_isic_principal,Secteur/branche d'activite (ISIC Rev.4 21 sections),categoriel,AP2_Niv1,le dictionnaire initial pointait a tort vers AP4 (secteur institutionnel, concept different); deja au niveau section ISIC, aucune agregation necessaire
+secteur_isic_principal_4cat,Secteur d'activite (4 familles),categoriel,AP2_Niv1,regroupe en Primaire/Industrie/Commerce/Service, identique au regroupement du rapport final ANSD (tableau 5.18)
+heures_semaine_principal,Heures travaillees par semaine (emploi principal),numerique,AP10C,le dictionnaire initial pointait a tort vers AP6A (regime fiscal); valeurs >98h/semaine neutralisees et signalees (flag_heures_aberrantes)
+sous_emploi_duree,Sous-emploi lie a la duree du travail,categoriel,AP10C + AP11A + R3,definition officielle ANSD (chap 1.5): heures <40/semaine + raison involontaire (AP11A) + disponible pour travailler plus (R3); simplifie car le critere "recherche d'un complement" n'a pas ete localise
+flag_heures_aberrantes,Heures aberrantes neutralisees (>98h/semaine),indicateur,AP10C,1 si valeur brute hors bornes de plausibilite, neutralisee en manquant
+flag_ecart_heures,Ecart >10h entre heures declarees et calculees,indicateur,AP10C + AP18A + AP18B + AP10B,controle croise; ecart eleve probablement du a l'absence de pause dejeuner dans le calcul de controle (cf note methodologique)
+revenu_principal_mensuel_fcfa,Revenu mensuel consolide de l'emploi principal (FCFA),numerique,AP13A + AP13B + AP13C,le dictionnaire initial pointait a tort vers AP8A1 (anciennete dans l'emploi); routage complet selon AP13A (direct/tranche, mensuel/annuel), valeurs hors bornes neutralisees (flag_revenu_aberrant)
+revenu_source,Source/mode de declaration du revenu,categoriel,AP13A,reprend directement le code AP13A (direct mensuel/annuel converti/tranche mensuelle/tranche annuelle convertie/refus/ne sait pas)
+flag_revenu_non_renseigne,Revenu non renseigne (refus/NSP),indicateur,AP13A,1 si AP13A vaut 5 (refuse) ou 6 (ne sait pas); jamais impute
+flag_revenu_aberrant,Revenu aberrant neutralise,indicateur,AP13A + AP13B + AP13C,1 si le montant consolide est hors bornes de plausibilite [1000 ; 5000000] FCFA/mois
+formalite_unite,Formalite de l'unite de production (secteur informel ANSD),categoriel,AP6A + AP6D + AP6E,le dictionnaire initial pointait a tort vers AP7 (lieu de travail); definition officielle ANSD chap 1.5 (non-enregistrement ou non-comptabilite formelle parmi les unites marchandes); non applicable pour les unites non marchandes
+formalite_emploi,Formalite de l'emploi (avantages employeur),categoriel,AP16_21A + AP16_22A + AP16_23A,definition officielle ANSD chap 1.5 (absence d'au moins un avantage: cotisations sociales/conges payes/conges maladie); administre aux salaries uniquement, non applicable aux independants
