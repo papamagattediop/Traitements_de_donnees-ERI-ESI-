@@ -721,6 +721,69 @@ def libelles_sortie(cfg, meta):
     return val_labels, col_labels
 
 
+def exporter_codebook(sortie, val_labels, col_labels, cfg):
+    """
+    Construit un codebook lisible : pour chaque variable de sortie, son
+    libelle, ses modalites avec leur effectif et leur part ponderee, ou ses
+    statistiques de base si elle est numerique. Meme convention que le
+    module demographie/geographie - la carte d'identite du fichier produit.
+    """
+    poids = sortie["poids_emploi"].fillna(0)
+    total = poids.sum()
+    numeriques = {"poids_emploi", "heures_semaine_principal", "revenu_principal_mensuel_fcfa"}
+    identifiants = {"id_grappe", "id_menage", "id_ordre", "id_men"}
+    lignes = []
+
+    for col in sortie.columns:
+        libelle = col_labels.get(col, col)
+
+        if col in identifiants:
+            lignes.append({
+                "variable": col, "libelle_variable": libelle,
+                "modalite": "identifiant", "libelle_modalite": "",
+                "effectif": int(sortie[col].notna().sum()),
+                "part_ponderee_%": "",
+                "detail": f"{sortie[col].nunique()} valeurs distinctes",
+            })
+            continue
+
+        if col in numeriques:
+            serie = pd.to_numeric(sortie[col], errors="coerce")
+            lignes.append({
+                "variable": col, "libelle_variable": libelle,
+                "modalite": "statistiques", "libelle_modalite": "",
+                "effectif": int(serie.notna().sum()),
+                "part_ponderee_%": "",
+                "detail": (f"min={serie.min():.0f} moyenne={serie.mean():.1f} "
+                           f"max={serie.max():.0f} manquants={int(serie.isna().sum())}"),
+            })
+            continue
+
+        labels_col = val_labels.get(col, {})
+        valeurs = sorted(sortie[col].dropna().unique().tolist())
+        for val in valeurs:
+            masque = sortie[col] == val
+            eff = int(masque.sum())
+            part = poids[masque].sum() / total * 100 if total else np.nan
+            lignes.append({
+                "variable": col, "libelle_variable": libelle,
+                "modalite": val,
+                "libelle_modalite": labels_col.get(val, labels_col.get(int(val), "")),
+                "effectif": eff,
+                "part_ponderee_%": round(part, 2),
+                "detail": "",
+            })
+        n_manquant = int(sortie[col].isna().sum())
+        if n_manquant:
+            lignes.append({
+                "variable": col, "libelle_variable": libelle,
+                "modalite": "manquant", "libelle_modalite": "",
+                "effectif": n_manquant, "part_ponderee_%": "", "detail": "",
+            })
+
+    return pd.DataFrame(lignes)
+
+
 # ----------------------------------------------------------------------------
 # Controles de coherence (bloc emploi principal seulement)
 # ----------------------------------------------------------------------------
@@ -881,6 +944,11 @@ def main():
     log.info("-" * 64)
     log.info(f"Table emploi principal ecrite : {chemin_dta} "
           f"({sortie.shape[0]} lignes, {sortie.shape[1]} colonnes)")
+
+    codebook = exporter_codebook(sortie, val_labels, col_labels, cfg)
+    chemin_cb = os.path.join(cfg["dossier_output"], "codebook_emploi_principal.csv")
+    codebook.to_csv(chemin_cb, index=False, encoding="utf-8")
+    log.info(f"Codebook ecrit : {chemin_cb} ({len(codebook)} lignes)")
 
     qc = controles_coherence(sortie, cfg)
     est = estimations_primaires(sortie, cfg)
