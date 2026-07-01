@@ -55,12 +55,24 @@ Auteure : Aissatou Gueye
 
 import os
 import sys
+import logging
 import numpy as np
 import pandas as pd
 import pyreadstat
 
+# Journal d'execution partage par tout le module (meme convention que le
+# module demographie/geographie). Configure dans main() pour ecrire a la
+# fois dans la console et dans journal_emploi_principal.log.
+log = logging.getLogger("emploi_principal")
+
 # Racine du depot (deux niveaux au dessus de scripts/python/)
 RACINE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+# Aucune variable de ce module n'est connue comme absente dans un pays
+# ERI-ESI donne (contrairement au "departement" du module demo/geo) - ce
+# jeu reste vide pour l'instant, mais existe pour la portabilite future si
+# un pays s'avere manquer l'une de ces variables.
+VARS_FACULTATIVES = set()
 
 
 # ----------------------------------------------------------------------------
@@ -179,6 +191,56 @@ CONFIG = {
 # Utilitaires
 # ----------------------------------------------------------------------------
 
+def creer_journal(cfg):
+    """
+    Met en place le journal d'execution. Tout ce que le module raconte part a
+    la fois vers la console et vers un fichier, pour garder une trace datee
+    du traitement - meme convention que le module demographie/geographie.
+    """
+    os.makedirs(cfg["dossier_output"], exist_ok=True)
+    chemin_log = os.path.join(cfg["dossier_output"], "journal_emploi_principal.log")
+
+    log.setLevel(logging.INFO)
+    log.handlers.clear()
+    fichier = logging.FileHandler(chemin_log, mode="w", encoding="utf-8")
+    fichier.setFormatter(logging.Formatter("%(asctime)s  %(levelname)-7s  %(message)s",
+                                           "%Y-%m-%d %H:%M:%S"))
+    console = logging.StreamHandler()
+    console.setFormatter(logging.Formatter("%(message)s"))
+    log.addHandler(fichier)
+    log.addHandler(console)
+    return chemin_log
+
+
+def valider_colonnes(cfg, chemin):
+    """
+    Verifie, avant tout traitement, que le fichier du pays contient bien les
+    variables attendues. Si une variable manque, le message dit laquelle et
+    ou la corriger, au lieu de laisser survenir plus loin une erreur obscure.
+    """
+    _, meta = pyreadstat.read_dta(chemin, metadataonly=True)
+    presentes = set(meta.column_names)
+
+    attendues = {nom: col for nom, col in cfg["vars"].items()
+                 if col is not None and nom not in VARS_FACULTATIVES}
+    manquantes = {nom: col for nom, col in attendues.items() if col not in presentes}
+
+    if manquantes:
+        details = ", ".join(f"{nom} attendue sous le nom '{col}'"
+                            for nom, col in manquantes.items())
+        raise KeyError(
+            "Le fichier ne contient pas toutes les variables requises. Manquent : "
+            + details + ". La correspondance se corrige dans CONFIG['vars'] pour ce pays."
+        )
+
+    facultatives = {nom: col for nom, col in cfg["vars"].items()
+                    if col is not None and nom in VARS_FACULTATIVES}
+    absentes_fac = [nom for nom, col in facultatives.items() if col not in presentes]
+    log.info(f"  validation colonnes : {len(attendues)} variables requises presentes")
+    if absentes_fac:
+        log.info(f"  variables facultatives absentes (tolerees) : {', '.join(absentes_fac)}")
+
+
 def localiser_base(cfg):
     """Retourne le chemin de la base fusionnee, en cherchant parmi plusieurs
     emplacements candidats (la structure locale peut differer de
@@ -202,8 +264,8 @@ def charger_base(cfg):
 
     chemin = localiser_base(cfg)
     df, meta = pyreadstat.read_dta(chemin, usecols=colonnes)
-    print(f"  base chargee : {df.shape[0]} lignes, {df.shape[1]} colonnes")
-    print(f"  source : {chemin}")
+    log.info(f"  base chargee : {df.shape[0]} lignes, {df.shape[1]} colonnes")
+    log.info(f"  source : {chemin}")
     return df, meta
 
 
@@ -254,21 +316,21 @@ def recoder_situation_activite(df, cfg, meta):
 
     n_total = len(df)
     n_manquant_structurel = int(df["situation_activite"].isna().sum())
-    print(f"  situation d'activite : {n_manquant_structurel}/{n_total} manquant "
+    log.info(f"  situation d'activite : {n_manquant_structurel}/{n_total} manquant "
           f"structurel (moins de 15 ans)")
-    print("  repartition (regroupe) :")
-    print(df["situation_activite_grp"].value_counts(dropna=False).sort_index().to_string())
+    log.info("  repartition (regroupe) :")
+    log.info(df["situation_activite_grp"].value_counts(dropna=False).sort_index().to_string())
     n_eligibles = int((df["eligible_module_emploi"] == 1).sum())
-    print(f"  eligibles au module emploi (10 ans et plus) : {n_eligibles}/{n_total}")
+    log.info(f"  eligibles au module emploi (10 ans et plus) : {n_eligibles}/{n_total}")
 
     inactifs = df["situation_activite"] == 4
     n_inactifs = int(inactifs.sum())
     n_raison_renseignee = int((inactifs & df["raison_inactivite"].notna()).sum())
     n_raison_hors_inactif = int((~inactifs & df["raison_inactivite"].notna()).sum())
-    print(f"  raison d'inactivite : renseignee pour {n_raison_renseignee}/{n_inactifs} "
+    log.info(f"  raison d'inactivite : renseignee pour {n_raison_renseignee}/{n_inactifs} "
           f"inactifs ({100 * n_raison_renseignee / n_inactifs:.1f}%)")
     if n_raison_hors_inactif > 0:
-        print(f"  ATTENTION : raison d'inactivite renseignee pour {n_raison_hors_inactif} "
+        log.info(f"  ATTENTION : raison d'inactivite renseignee pour {n_raison_hors_inactif} "
               f"individus non-inactifs (a verifier, cf. main d'oeuvre potentielle)")
 
     return df
@@ -310,11 +372,11 @@ def recoder_statut_emploi(df, cfg, meta):
 
     n_total = len(df)
     n_manquant = int(df["statut_emploi"].isna().sum())
-    print(f"  statut emploi : {n_manquant}/{n_total} manquant structurel (non occupe)")
-    print(f"  travail des enfants (10-14 ans avec statut emploi renseigne) : "
+    log.info(f"  statut emploi : {n_manquant}/{n_total} manquant structurel (non occupe)")
+    log.info(f"  travail des enfants (10-14 ans avec statut emploi renseigne) : "
           f"{int(df['flag_travail_enfant_10_14'].sum())} cas")
-    print("  repartition type d'emploi (parmi occupes) :")
-    print(df["type_emploi"].map(cfg["labels_type_emploi"])
+    log.info("  repartition type d'emploi (parmi occupes) :")
+    log.info(df["type_emploi"].map(cfg["labels_type_emploi"])
           .value_counts(dropna=False, normalize=True).mul(100).round(1).to_string())
 
     return df
@@ -355,10 +417,10 @@ def recoder_branche(df, cfg, meta):
 
     n_total = len(df)
     n_manquant = int(df["secteur_isic_principal"].isna().sum())
-    print(f"  branche d'activite : {n_manquant}/{n_total} manquant structurel (non occupe)")
-    print("  repartition 4 familles (parmi occupes) :")
+    log.info(f"  branche d'activite : {n_manquant}/{n_total} manquant structurel (non occupe)")
+    log.info("  repartition 4 familles (parmi occupes) :")
     presents = df["secteur_isic_principal_4cat"].map(cfg["labels_secteur_4cat"]).dropna()
-    print(presents.value_counts(normalize=True).mul(100).round(1).to_string())
+    log.info(presents.value_counts(normalize=True).mul(100).round(1).to_string())
 
     return df
 
@@ -400,11 +462,11 @@ def recoder_heures_travail(df, cfg, meta):
 
     n_total = len(df)
     n_manquant = int(df["heures_semaine_principal"].isna().sum())
-    print(f"  heures de travail : {n_manquant}/{n_total} manquant (structurel + "
+    log.info(f"  heures de travail : {n_manquant}/{n_total} manquant (structurel + "
           f"{int(aberrant.sum())} aberrant(s) neutralise(s))")
-    print("  statistiques (parmi occupes, apres nettoyage) :")
-    print(df["heures_semaine_principal"].dropna().describe().to_string())
-    print(f"  ecart > 10h avec calcul debut/fin x jours : "
+    log.info("  statistiques (parmi occupes, apres nettoyage) :")
+    log.info(df["heures_semaine_principal"].dropna().describe().to_string())
+    log.info(f"  ecart > 10h avec calcul debut/fin x jours : "
           f"{int(df['flag_ecart_heures'].sum())} cas signales")
 
     return df
@@ -449,7 +511,7 @@ def recoder_sous_emploi(df, cfg, meta):
 
     n_eligible = int(eligible.sum())
     n_sous_emploi = int(sous_emploi.sum())
-    print(f"  sous-emploi (duree) : {n_sous_emploi}/{n_eligible} occupes avec heures "
+    log.info(f"  sous-emploi (duree) : {n_sous_emploi}/{n_eligible} occupes avec heures "
           f"renseignees ({100 * n_sous_emploi / n_eligible:.1f}%)")
 
     return df
@@ -497,13 +559,13 @@ def recoder_revenu(df, cfg, meta):
 
     n_total = len(df)
     n_manquant = int(df["revenu_principal_mensuel_fcfa"].isna().sum())
-    print(f"  revenu : {n_manquant}/{n_total} manquant (structurel + refus/NSP + "
+    log.info(f"  revenu : {n_manquant}/{n_total} manquant (structurel + refus/NSP + "
           f"{int(aberrant.sum())} aberrant(s) neutralise(s))")
-    print("  repartition source du revenu (parmi occupes) :")
-    print(df["revenu_source"].map(cfg["labels_revenu_source"]).value_counts(dropna=False).to_string())
-    print("  statistiques revenu mensuel consolide (FCFA, apres nettoyage) :")
-    print(df["revenu_principal_mensuel_fcfa"].dropna().describe().to_string())
-    print("  reference rapport ANSD : moyenne Senegal 125 485 FCFA/mois "
+    log.info("  repartition source du revenu (parmi occupes) :")
+    log.info(df["revenu_source"].map(cfg["labels_revenu_source"]).value_counts(dropna=False).to_string())
+    log.info("  statistiques revenu mensuel consolide (FCFA, apres nettoyage) :")
+    log.info(df["revenu_principal_mensuel_fcfa"].dropna().describe().to_string())
+    log.info("  reference rapport ANSD : moyenne Senegal 125 485 FCFA/mois "
           "(non pondere ici, a comparer une fois l'estimation ponderee faite)")
 
     return df
@@ -559,10 +621,10 @@ def recoder_formalite(df, cfg, meta):
     formalite_emploi = formalite_emploi.mask(formel_emploi, 1)
     df["formalite_emploi"] = formalite_emploi
 
-    print("  formalite de l'unite (parmi unites concernees) :")
-    print(df["formalite_unite"].map(cfg["labels_formalite"]).value_counts(dropna=False).to_string())
-    print("  formalite de l'emploi (parmi salaries avec bloc avantages renseigne) :")
-    print(df["formalite_emploi"].map(cfg["labels_formalite"]).value_counts(dropna=False).to_string())
+    log.info("  formalite de l'unite (parmi unites concernees) :")
+    log.info(df["formalite_unite"].map(cfg["labels_formalite"]).value_counts(dropna=False).to_string())
+    log.info("  formalite de l'emploi (parmi salaries avec bloc avantages renseigne) :")
+    log.info(df["formalite_emploi"].map(cfg["labels_formalite"]).value_counts(dropna=False).to_string())
 
     return df
 
@@ -785,8 +847,13 @@ def estimations_primaires(df, cfg):
 
 def main():
     cfg = CONFIG
-    print(f"Module emploi principal - pays {cfg['pays']} {cfg['vague']}")
-    print("-" * 64)
+    chemin_log = creer_journal(cfg)
+    log.info(f"Module emploi principal - pays {cfg['pays']} {cfg['vague']}")
+    log.info(f"Journal ecrit dans : {chemin_log}")
+    log.info("-" * 64)
+
+    chemin_base = localiser_base(cfg)
+    valider_colonnes(cfg, chemin_base)
 
     df, meta = charger_base(cfg)
 
@@ -811,8 +878,8 @@ def main():
                          variable_value_labels=val_labels,
                          column_labels=col_labels)
 
-    print("-" * 64)
-    print(f"Table emploi principal ecrite : {chemin_dta} "
+    log.info("-" * 64)
+    log.info(f"Table emploi principal ecrite : {chemin_dta} "
           f"({sortie.shape[0]} lignes, {sortie.shape[1]} colonnes)")
 
     qc = controles_coherence(sortie, cfg)
@@ -822,13 +889,13 @@ def main():
     qc.to_csv(chemin_qc, index=False, encoding="utf-8")
     est.to_csv(chemin_est, index=False, encoding="utf-8")
 
-    print("\nControles de coherence (bloc emploi principal) :")
-    print(qc.to_string(index=False))
-    print("\nEstimations ponderees (poids_emploi) vs reference ANSD :")
-    print(est.to_string(index=False))
-    print(f"\nFichiers ecrits : {chemin_qc}")
-    print(f"                  {chemin_est}")
-    print("\nTermine.")
+    log.info("\nControles de coherence (bloc emploi principal) :")
+    log.info(qc.to_string(index=False))
+    log.info("\nEstimations ponderees (poids_emploi) vs reference ANSD :")
+    log.info(est.to_string(index=False))
+    log.info(f"\nFichiers ecrits : {chemin_qc}")
+    log.info(f"                  {chemin_est}")
+    log.info("\nTermine.")
 
 
 if __name__ == "__main__":
