@@ -220,9 +220,39 @@ def recoder_situation_activite(df, cfg, meta):
     return df
 
 
+def recoder_statut_emploi(df, cfg, meta):
+    """
+    Statut dans l'emploi principal (AP3, categorie socioprofessionnelle),
+    confirme correct dans le dictionnaire initial. On en deduit le type
+    d'emploi salarie/independant en suivant le regroupement fait par le
+    questionnaire lui-meme (bloc "Salarie" vs bloc "Employeur/Independant") :
+      - 1 a 6 et 10 (cadre superieur a manoeuvre, apprenti paye ou non) -> salarie
+      - 7, 8, 9 (employeur, compte propre, aide familial) -> independant
+    Manquant structurel = non occupe (memes 91676 lignes que les autres
+    variables du bloc AP).
+    """
+    v = cfg["vars"]
+    df["statut_emploi"] = df[v["statut_emploi"]]
+
+    correspondance_type = {
+        1: "salarie", 2: "salarie", 3: "salarie", 4: "salarie",
+        5: "salarie", 6: "salarie", 10: "salarie",
+        7: "independant", 8: "independant", 9: "independant",
+    }
+    df["type_emploi"] = df["statut_emploi"].map(correspondance_type)
+
+    n_total = len(df)
+    n_manquant = int(df["statut_emploi"].isna().sum())
+    print(f"  statut emploi : {n_manquant}/{n_total} manquant structurel (non occupe)")
+    print("  repartition type d'emploi (parmi occupes) :")
+    print(df["type_emploi"].value_counts(dropna=False, normalize=True).mul(100).round(1).to_string())
+
+    return df
+
+
 # ----------------------------------------------------------------------------
 # Orchestration (etapes de recodage restantes ajoutees dans les prochains
-# commits : statut emploi, branche, heures, revenu, formalite)
+# commits : branche, heures, revenu, formalite)
 # ----------------------------------------------------------------------------
 
 def main():
@@ -237,9 +267,10 @@ def main():
                     + df[v["id_menage"]].astype("Int64").astype(str))
 
     df = recoder_situation_activite(df, cfg, meta)
+    df = recoder_statut_emploi(df, cfg, meta)
 
     print("-" * 64)
-    print("Etape situation d'activite OK. Suite a venir dans les prochains commits.")
+    print("Etape statut emploi OK. Suite a venir dans les prochains commits.")
 
 
 if __name__ == "__main__":
