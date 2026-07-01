@@ -176,9 +176,53 @@ def libelles_valeurs(meta, nom_var):
 
 
 # ----------------------------------------------------------------------------
-# Orchestration (etapes de nettoyage/recodage ajoutees dans les prochains
-# commits : situation d'activite, statut emploi, branche, heures, revenu,
-# formalite)
+# Etapes de nettoyage et de recodage
+# ----------------------------------------------------------------------------
+
+def recoder_situation_activite(df, cfg, meta):
+    """
+    Situation d'activite (sitac) : deja calculee par l'ANSD, reprise telle
+    quelle. On ajoute un regroupement simplifie en 4 postes, utile pour les
+    comparaisons inter-pays : 1 actif occupe, 2 chomeur BIT, 3 main d'oeuvre
+    potentielle (regroupe les sous-codes 31/32/33), 4 inactif hors main
+    d'oeuvre.
+
+    Raison d'inactivite (SE11) : le dictionnaire initial indiquait SE9, qui
+    est en realite la disponibilite (cf. note_emploi_principal.md). La vraie
+    raison d'inactivite est SE11, reprise ici, structurellement renseignee
+    seulement chez les inactifs (sitac==4).
+    """
+    v = cfg["vars"]
+    df["situation_activite"] = df[v["sitac"]]
+
+    correspondance_groupe = {1: 1, 2: 2, 31: 3, 32: 3, 33: 3, 4: 4}
+    df["situation_activite_grp"] = df["situation_activite"].map(correspondance_groupe)
+
+    df["raison_inactivite"] = df[v["raison_inactivite"]]
+
+    n_total = len(df)
+    n_manquant_structurel = int(df["situation_activite"].isna().sum())
+    print(f"  situation d'activite : {n_manquant_structurel}/{n_total} manquant "
+          f"structurel (moins de 15 ans)")
+    print("  repartition (regroupe) :")
+    print(df["situation_activite_grp"].value_counts(dropna=False).sort_index().to_string())
+
+    inactifs = df["situation_activite"] == 4
+    n_inactifs = int(inactifs.sum())
+    n_raison_renseignee = int((inactifs & df["raison_inactivite"].notna()).sum())
+    n_raison_hors_inactif = int((~inactifs & df["raison_inactivite"].notna()).sum())
+    print(f"  raison d'inactivite : renseignee pour {n_raison_renseignee}/{n_inactifs} "
+          f"inactifs ({100 * n_raison_renseignee / n_inactifs:.1f}%)")
+    if n_raison_hors_inactif > 0:
+        print(f"  ATTENTION : raison d'inactivite renseignee pour {n_raison_hors_inactif} "
+              f"individus non-inactifs (a verifier, cf. main d'oeuvre potentielle)")
+
+    return df
+
+
+# ----------------------------------------------------------------------------
+# Orchestration (etapes de recodage restantes ajoutees dans les prochains
+# commits : statut emploi, branche, heures, revenu, formalite)
 # ----------------------------------------------------------------------------
 
 def main():
@@ -192,8 +236,10 @@ def main():
     df["id_men"] = (df[v["id_grappe"]].astype("Int64").astype(str) + "_"
                     + df[v["id_menage"]].astype("Int64").astype(str))
 
+    df = recoder_situation_activite(df, cfg, meta)
+
     print("-" * 64)
-    print("Squelette OK. Etapes de recodage a venir dans les prochains commits.")
+    print("Etape situation d'activite OK. Suite a venir dans les prochains commits.")
 
 
 if __name__ == "__main__":
