@@ -250,9 +250,98 @@ def recoder_statut_emploi(df, cfg, meta):
     return df
 
 
+def recoder_branche(df, cfg, meta):
+    """
+    Branche/secteur d'activite (AP2_Niv1) : le dictionnaire initial pointait
+    a tort vers AP4 (secteur institutionnel, concept different). AP2_Niv1
+    est confirme par le questionnaire et par ses modalites, qui sont deja
+    les 21 sections ISIC Rev.4 (Agriculture, Industries extractives,
+    Fabrication, ..., Organisations extraterritoriales) : rien a agreger,
+    contrairement a ce qui etait envisage avant verification.
+
+    On ajoute egalement un regroupement en 4 grandes familles
+    (Primaire/Industrie/Commerce/Service), identique a celui utilise dans
+    le rapport final ANSD pour ses propres tableaux de resultats - utile
+    pour comparer nos estimations aux chiffres deja publies.
+    """
+    v = cfg["vars"]
+    df["secteur_isic_principal"] = df[v["branche"]]
+
+    # Regroupement Primaire/Industrie/Commerce/Service, calque sur celui du
+    # rapport final ANSD (tableau 5.18) :
+    #   Primaire  : Agriculture/sylviculture/peche (1)
+    #   Industrie : extractives, fabrication, electricite/gaz, eau/dechets,
+    #               construction (2,3,4,5,6)
+    #   Commerce  : commerce (7)
+    #   Service   : tout le reste (transports, hebergement, information,
+    #               finance, immobilier, services divers, administration,
+    #               enseignement, sante, arts, menages, extraterritoriales)
+    correspondance_4cat = {1: "Primaire"}
+    correspondance_4cat.update({c: "Industrie" for c in [2, 3, 4, 5, 6]})
+    correspondance_4cat[7] = "Commerce"
+    correspondance_4cat.update({c: "Service" for c in range(8, 22)})
+    df["secteur_isic_principal_4cat"] = df["secteur_isic_principal"].map(correspondance_4cat)
+
+    n_total = len(df)
+    n_manquant = int(df["secteur_isic_principal"].isna().sum())
+    print(f"  branche d'activite : {n_manquant}/{n_total} manquant structurel (non occupe)")
+    print("  repartition 4 familles (parmi occupes) :")
+    presents = df["secteur_isic_principal_4cat"].dropna()
+    print(presents.value_counts(normalize=True).mul(100).round(1).to_string())
+
+    return df
+
+
+def recoder_heures_travail(df, cfg, meta):
+    """
+    Heures de travail (AP10C), confirmees par le questionnaire comme etant
+    un nombre d'heures par semaine ("au cours des 7 derniers jours, ou
+    habituellement par semaine"). Le dictionnaire initial pointait a tort
+    vers AP6A (regime fiscal).
+
+    Nettoyage : les valeurs au-dela de la borne de plausibilite (98h/semaine,
+    soit 14h/jour x 7) sont neutralisees et signalees plutot que gardees
+    telles quelles - on a observe un maximum brut de 224h/semaine, ce qui est
+    physiquement impossible.
+
+    Controle de coherence : une duree quotidienne est recalculee a partir des
+    heures de debut/fin de journee (AP18A, AP18B, gestion du passage minuit),
+    multipliee par le nombre de jours travailles dans la semaine (AP10B), et
+    comparee a la valeur declaree (AP10C). Un ecart important est signale
+    sans jamais corriger automatiquement l'une par l'autre.
+    """
+    v = cfg["vars"]
+    heures = df[v["heures_semaine"]].copy()
+
+    aberrant = heures > cfg["heures_semaine_max"]
+    df["flag_heures_aberrantes"] = aberrant.fillna(False).astype("int8")
+    heures = heures.mask(aberrant, np.nan)
+    df["heures_semaine_principal"] = heures
+
+    debut = df[v["heure_debut_h"]] + df[v["heure_debut_m"]] / 60
+    fin = df[v["heure_fin_h"]] + df[v["heure_fin_m"]] / 60
+    duree_quotidienne = fin - debut
+    duree_quotidienne = duree_quotidienne.where(duree_quotidienne >= 0, duree_quotidienne + 24)
+
+    heures_calculees = duree_quotidienne * df[v["jours_semaine"]]
+    ecart = (df["heures_semaine_principal"] - heures_calculees).abs()
+    df["flag_ecart_heures"] = (ecart > 10).fillna(False).astype("int8")
+
+    n_total = len(df)
+    n_manquant = int(df["heures_semaine_principal"].isna().sum())
+    print(f"  heures de travail : {n_manquant}/{n_total} manquant (structurel + "
+          f"{int(aberrant.sum())} aberrant(s) neutralise(s))")
+    print("  statistiques (parmi occupes, apres nettoyage) :")
+    print(df["heures_semaine_principal"].dropna().describe().to_string())
+    print(f"  ecart > 10h avec calcul debut/fin x jours : "
+          f"{int(df['flag_ecart_heures'].sum())} cas signales")
+
+    return df
+
+
 # ----------------------------------------------------------------------------
 # Orchestration (etapes de recodage restantes ajoutees dans les prochains
-# commits : branche, heures, revenu, formalite)
+# commits : revenu, formalite)
 # ----------------------------------------------------------------------------
 
 def main():
@@ -268,9 +357,11 @@ def main():
 
     df = recoder_situation_activite(df, cfg, meta)
     df = recoder_statut_emploi(df, cfg, meta)
+    df = recoder_branche(df, cfg, meta)
+    df = recoder_heures_travail(df, cfg, meta)
 
     print("-" * 64)
-    print("Etape statut emploi OK. Suite a venir dans les prochains commits.")
+    print("Etape heures de travail OK. Suite a venir dans les prochains commits.")
 
 
 if __name__ == "__main__":
