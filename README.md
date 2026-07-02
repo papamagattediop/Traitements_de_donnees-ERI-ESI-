@@ -15,6 +15,8 @@ configuration centralisé.
 
 ```
 .
+├── run.do                              Lanceur unique du pipeline (Stata)
+├── run.py                              Lanceur unique du pipeline (Python)
 ├── scripts/
 │   ├── stata/                          Pipeline principal
 │   │   ├── config.do                   Configuration pays (chemins, clés de fusion)
@@ -84,14 +86,17 @@ dans `output/<PAYS>/`.
 
 Prérequis : Stata 14 ou plus. Lancer depuis la racine du dépôt.
 
+**Via Stata :**
 ```stata
-do scripts/stata/01_fusion.do
-do scripts/stata/03_demographie_geo.do
-do scripts/stata/03_emploi_principal.do
-do scripts/stata/04_emploi_secondaire.do
-do scripts/stata/05_menages.do
-do scripts/stata/06_consolidation.do
+do run.do
 ```
+
+**Via Python (lance Stata en batch) :**
+```bash
+python run.py
+```
+
+Les deux lanceurs exécutent les six scripts dans l'ordre et affichent le temps total d'exécution.
 
 ---
 
