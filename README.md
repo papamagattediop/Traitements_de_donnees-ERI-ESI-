@@ -16,14 +16,25 @@ configuration centralisé.
 ```
 .
 ├── scripts/
-│   └── stata/                  Pipeline principal (6 scripts séquentiels)
+│   ├── stata/                          Pipeline principal
+│   │   ├── config.do                   Configuration pays (chemins, clés de fusion)
+│   │   ├── 01_fusion.do                Fusion roster + module emploi
+│   │   ├── 03_demographie_geo.do       Démographie et géographie individus
+│   │   ├── 03_emploi_principal.do      Emploi principal
+│   │   ├── 04_emploi_secondaire.do     Emploi secondaire
+│   │   ├── 05_menages.do               Table ménages
+│   │   └── 06_consolidation.do         Assemblage final
+│   └── python/                         Modules Python (versions alternatives)
+│       ├── 03_demographie_geo.py
+│       └── 03_emploi_principal.py
 ├── docs/
-│   ├── dictionnaire_variables.csv
-│   └── rapport_synthese.tex
-├── rapport_synthese.pdf         Rapport de synthèse (Groupe 1)
-├── repartition.html             Tableau de bord de répartition des tâches
-├── input/<PAYS>/                Données brutes (.dta) -- non versionnées
-├── output/<PAYS>/               Tables produites -- non versionnées
+│   ├── dictionnaire_variables.csv      Correspondance variables sources/produites
+│   ├── rapport_synthese.tex            Source LaTeX du rapport
+│   └── [questionnaires et notes]
+├── rapport_synthese.pdf                Rapport de synthèse (Groupe 1)
+├── repartition.html                    Tableau de bord de répartition des tâches
+├── input/<PAYS>/                       Données brutes (.dta) -- non versionnées
+├── output/<PAYS>/                      Tables produites -- non versionnées
 ├── .gitignore
 └── README.md
 ```
