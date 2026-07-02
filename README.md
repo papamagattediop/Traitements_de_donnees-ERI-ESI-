@@ -27,8 +27,12 @@ configuration centralisé.
 │   │   ├── 05_menages.do               Table ménages
 │   │   └── 06_consolidation.do         Assemblage final
 │   └── python/                         Modules Python (versions alternatives)
-│       ├── 03_demographie_geo.py
-│       └── 03_emploi_principal.py
+│       ├── 03_demographie_geo.py        Démographie et géographie individus
+│       ├── 03_emploi_principal.py       Emploi principal
+│       ├── 03_emploi_principal_graphiques.py  Graphiques exploratoires (optionnel)
+│       ├── profil_demo_geo.py           Profil démographique rapide
+│       ├── tests_demo_geo.py            Tests automatiques module démo/géo
+│       └── tests_emploi_principal.py    Tests automatiques module emploi principal
 ├── docs/
 │   ├── dictionnaire_variables.csv      Correspondance variables sources/produites
 │   ├── rapport_synthese.tex            Source LaTeX du rapport
@@ -65,20 +69,21 @@ dossier `output/SEN/`.
 
 ## Pipeline
 
-Le traitement s'exécute en six scripts Stata, depuis la racine du dépôt :
+Le traitement s'exécute en six étapes séquentielles. Chaque étape dispose
+d'une version Stata (pipeline principal) et d'une version Python alternative
+pour les modules 2 et 3.
 
-| Ordre | Script | Entrée | Sortie |
-|---|---|---|---|
-| 1 | `01_fusion.do` | Fichiers bruts | `base_individus_emploi_fusionnee.dta` |
-| 2 | `03_demographie_geo.do` | Base fusionnée | `individus_demo_geo.dta` |
-| 3 | `03_emploi_principal.do` | Base fusionnée | `emploi_principal.dta` |
-| 4 | `04_emploi_secondaire.do` | Base fusionnée | `emploi_secondaire.dta` |
-| 5 | `05_menages.do` | `individus_demo_geo.dta` | `menages.dta` |
-| 6 | `06_consolidation.do` | Sorties modules 2 à 5 | `individus_consolide.dta`, `menages_consolide.dta` |
+| Ordre | Stata | Python | Entrée | Sortie |
+|---|---|---|---|---|
+| 1 | `01_fusion.do` | -- | Fichiers bruts | `base_individus_emploi_fusionnee.dta` |
+| 2 | `03_demographie_geo.do` | `03_demographie_geo.py` | Base fusionnée | `individus_demo_geo.dta` |
+| 3 | `03_emploi_principal.do` | `03_emploi_principal.py` | Base fusionnée | `emploi_principal.dta` |
+| 4 | `04_emploi_secondaire.do` | -- | Base fusionnée | `emploi_secondaire.dta` |
+| 5 | `05_menages.do` | -- | `individus_demo_geo.dta` | `menages.dta` |
+| 6 | `06_consolidation.do` | -- | Sorties modules 2 à 5 | `individus_consolide.dta`, `menages_consolide.dta` |
 
-Chaque script produit également un fichier de contrôles de cohérence
-(`qc_*.csv`) et un fichier d'estimations pondérées (`estimations_*.csv`)
-dans `output/<PAYS>/`.
+Chaque script produit un fichier de contrôles de cohérence (`qc_*.csv`) et
+un fichier d'estimations pondérées (`estimations_*.csv`) dans `output/<PAYS>/`.
 
 ---
 
