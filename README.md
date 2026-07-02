@@ -6,7 +6,8 @@ conçu pour être généralisable aux autres pays de l'UEMOA via un bloc de
 configuration centralisé.
 
 **Rapport de synthèse :** [`rapport_synthese.pdf`](rapport_synthese.pdf)  
-**Dépôt GitHub :** [papamagattediop/Traitements\_de\_donnees-ERI-ESI-](https://github.com/papamagattediop/Traitements_de_donnees-ERI-ESI-)
+**Dépôt GitHub :** [papamagattediop/Traitements\_de\_donnees-ERI-ESI-](https://github.com/papamagattediop/Traitements_de_donnees-ERI-ESI-)  
+**Année académique :** 2025-2026
 
 ---
 
