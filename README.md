@@ -26,9 +26,13 @@ configuration centralisé.
 │   │   ├── 04_emploi_secondaire.do     Emploi secondaire
 │   │   ├── 05_menages.do               Table ménages
 │   │   └── 06_consolidation.do         Assemblage final
-│   └── python/                         Modules Python (versions alternatives)
+│   └── python/                         Pipeline Python (équivalent complet)
+│       ├── 01_fusion.py                 Fusion roster + module emploi
 │       ├── 03_demographie_geo.py        Démographie et géographie individus
 │       ├── 03_emploi_principal.py       Emploi principal
+│       ├── 04_emploi_secondaire.py      Emploi secondaire
+│       ├── 05_menages.py                Table ménages
+│       ├── 06_consolidation.py          Assemblage final
 │       ├── 03_emploi_principal_graphiques.py  Graphiques exploratoires (optionnel)
 │       ├── profil_demo_geo.py           Profil démographique rapide
 │       ├── tests_demo_geo.py            Tests automatiques module démo/géo
@@ -75,12 +79,12 @@ pour les modules 2 et 3.
 
 | Ordre | Stata | Python | Entrée | Sortie |
 |---|---|---|---|---|
-| 1 | `01_fusion.do` | -- | Fichiers bruts | `base_individus_emploi_fusionnee.dta` |
+| 1 | `01_fusion.do` | `01_fusion.py` | Fichiers bruts | `base_individus_emploi_fusionnee.dta` |
 | 2 | `03_demographie_geo.do` | `03_demographie_geo.py` | Base fusionnée | `individus_demo_geo.dta` |
 | 3 | `03_emploi_principal.do` | `03_emploi_principal.py` | Base fusionnée | `emploi_principal.dta` |
-| 4 | `04_emploi_secondaire.do` | -- | Base fusionnée | `emploi_secondaire.dta` |
-| 5 | `05_menages.do` | -- | `individus_demo_geo.dta` | `menages.dta` |
-| 6 | `06_consolidation.do` | -- | Sorties modules 2 à 5 | `individus_consolide.dta`, `menages_consolide.dta` |
+| 4 | `04_emploi_secondaire.do` | `04_emploi_secondaire.py` | Base fusionnée | `emploi_secondaire.dta` |
+| 5 | `05_menages.do` | `05_menages.py` | `individus_demo_geo.dta` | `menages.dta` |
+| 6 | `06_consolidation.do` | `06_consolidation.py` | Sorties modules 2 à 5 | `individus_consolide.dta`, `menages_consolide.dta` |
 
 Chaque script produit un fichier de contrôles de cohérence (`qc_*.csv`) et
 un fichier d'estimations pondérées (`estimations_*.csv`) dans `output/<PAYS>/`.
@@ -96,12 +100,17 @@ Prérequis : Stata 14 ou plus. Lancer depuis la racine du dépôt.
 do run.do
 ```
 
-**Via Python (lance Stata en batch) :**
+**Via Python -- pipeline Stata (batch) :**
 ```bash
 python run.py
 ```
 
-Les deux lanceurs exécutent les six scripts dans l'ordre et affichent le temps total d'exécution.
+**Via Python -- pipeline Python natif :**
+```bash
+python run.py --python
+```
+
+Les deux modes exécutent les six étapes dans l'ordre et affichent le temps total d'exécution.
 
 ---
 
