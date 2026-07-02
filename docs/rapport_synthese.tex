@@ -1,0 +1,297 @@
+\documentclass[12pt,a4paper]{article}
+
+% --- Encodage et langue
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+
+% --- Police Times New Roman
+\usepackage{mathptmx}
+
+% --- Mise en page
+\usepackage[top=2.5cm, bottom=2.5cm, left=3cm, right=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% --- Justification et typographie
+\usepackage{microtype}
+\usepackage{parskip}
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+
+% --- Liens sans couleur
+\usepackage[colorlinks=false, pdfborder={0 0 0}]{hyperref}
+
+% --- Tableaux
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+
+% --- Pas de numérotation des sections
+\setcounter{secnumdepth}{0}
+
+% --- En-tête et pied de page
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Groupe 1 -- ERI-ESI 2017}
+\fancyhead[R]{\small Traitement de données}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ============================================================
+\begin{document}
+
+% --- Page de garde
+\begin{titlepage}
+\centering
+\vspace*{1.5cm}
+
+{\large \textbf{École Nationale de la Statistique\\et de l'Analyse Économique}}\\[0.3cm]
+{\normalsize Dakar, Sénégal}
+
+\vspace{2cm}
+\rule{\linewidth}{0.5pt}\\[0.4cm]
+{\LARGE \textbf{Traitement de données\\[0.3cm]
+Enquête Régionale Intégrée sur l'Emploi\\
+et le Secteur Informel (ERI-ESI 2017)}}\\[0.4cm]
+\rule{\linewidth}{0.5pt}
+
+\vspace{1.2cm}
+{\large \textit{Rapport de synthèse -- Groupe 1}}
+
+\vspace{2cm}
+\begin{tabular}{ll}
+\textbf{Membres du groupe :} & Ndeye Aïssatou CISSE \\
+                              & Papa Maguette DIOP \\
+                              & Aïssatou GUEYE \\
+                              & Awa GUEYE \\
+                              & Marc MARE \\[0.3cm]
+\textbf{Qualité :}            & Analystes statisticiens en fin de formation \\[0.3cm]
+\textbf{Dépôt GitHub :}       & \href{https://github.com/papamagattediop/Traitements\_de\_donnees-ERI-ESI-}%
+                                {\texttt{papamagattediop/Traitements\_de\_donnees-ERI-ESI-}} \\
+\end{tabular}
+
+\vfill
+{\normalsize Année académique 2024-2025}
+\end{titlepage}
+
+% ============================================================
+\section*{1.\quad Contexte et objectifs}
+
+L'ERI-ESI (Enquête Régionale Intégrée sur l'Emploi et le Secteur Informel) est une
+opération statistique conjointe conduite en 2017 par l'ANSD, l'AFRISTAT et l'UEMOA
+dans plusieurs pays membres. Le volet sénégalais, objet de ce travail, porte sur
+l'emploi, les conditions d'activité et le secteur informel.
+
+L'objectif du projet est de construire un pipeline de traitement reproductible à
+partir des fichiers bruts de l'enquête, en produisant deux tables analytiques
+consolidées (individus et ménages) ainsi qu'un ensemble de contrôles de qualité et
+d'estimations de référence. Le pipeline est conçu pour être généralisable aux autres
+volets pays de l'ERI-ESI, moyennant l'adaptation d'un bloc de configuration centralisé.
+
+% ============================================================
+\section*{2.\quad Sources de données}
+
+Deux fichiers \texttt{.dta} constituent les entrées du pipeline.
+
+\begin{table}[h!]
+\centering
+\begin{tabularx}{\linewidth}{lXrr}
+\toprule
+\textbf{Fichier} & \textbf{Contenu} & \textbf{Obs.} & \textbf{Variables} \\
+\midrule
+\texttt{individus\_TP.dta} & Roster des membres du ménage & 120 693 & 53 \\
+\texttt{emploi\_Tp.dta}    & Module emploi individuel      & 120 689 & 492 \\
+\bottomrule
+\end{tabularx}
+\caption{Fichiers sources (volet Sénégal, ERI-ESI 2017)}
+\end{table}
+
+Les deux fichiers sont appariés sur la clé \texttt{hh1 + hh2 + m1}
+(grappe, ménage, numéro d'ordre de l'individu). Quatre individus du roster
+n'ont pas de correspondance dans le module emploi, ce qui est cohérent avec
+le champ d'application de ce module, restreint aux personnes de dix ans et plus.
+La base fusionnée regroupe ainsi 120 693 lignes et 543 variables.
+
+Les fichiers de données, trop volumineux pour être versionnés (807 Mo, 82 Mo
+et 99 Mo respectivement), sont mis à disposition par voie externe, conformément
+aux instructions précisées dans le fichier \texttt{README.md} du dépôt.
+
+% ============================================================
+\section*{3.\quad Pipeline de traitement}
+
+Le pipeline est entièrement implémenté en Stata 18. Il s'articule en six scripts
+exécutés séquentiellement depuis la racine du dépôt.
+
+\begin{table}[h!]
+\centering
+\begin{tabularx}{\linewidth}{llX}
+\toprule
+\textbf{Script} & \textbf{Entrée} & \textbf{Sortie} \\
+\midrule
+\texttt{01\_fusion.do}
+  & \texttt{individus\_TP.dta}, \texttt{emploi\_Tp.dta}
+  & \texttt{base\_individus\_emploi\_fusionnee.dta} \\[4pt]
+\texttt{03\_demographie\_geo.do}
+  & Base fusionnée
+  & \texttt{individus\_demo\_geo.dta} \\[4pt]
+\texttt{03\_emploi\_principal.do}
+  & Base fusionnée
+  & \texttt{emploi\_principal.dta} \\[4pt]
+\texttt{04\_emploi\_secondaire.do}
+  & Base fusionnée
+  & \texttt{emploi\_secondaire.dta} \\[4pt]
+\texttt{05\_menages.do}
+  & \texttt{individus\_demo\_geo.dta}
+  & \texttt{menages.dta} \\[4pt]
+\texttt{06\_consolidation.do}
+  & Sorties des modules 03 à 05
+  & \texttt{individus\_consolide.dta}, \texttt{menages\_consolide.dta} \\
+\bottomrule
+\end{tabularx}
+\caption{Séquence d'exécution du pipeline}
+\end{table}
+
+La configuration pays (chemins, noms de fichiers, clés de fusion) est centralisée
+dans \texttt{config.do}. L'adaptation à un autre pays de l'UEMOA ne requiert que
+la modification de ce bloc, sans toucher à la logique de traitement.
+
+% ============================================================
+\section*{4.\quad Variables construites}
+
+\subsection*{4.1\quad Module démographie et géographie}
+
+Ce module construit les variables individuelles de base à partir du roster :
+sexe, âge et groupe d'âge (huit tranches), lien de parenté avec le chef de
+ménage (détaillé et regroupé en cinq postes), situation matrimoniale, niveau
+d'études consolidé (six niveaux) et branche d'études. La région et le milieu
+de résidence (urbain/rural) sont également retenus. Cinq indicateurs de
+contrôle (flags) signalent les incohérences détectées sans modifier les
+observations.
+
+\subsection*{4.2\quad Module emploi principal}
+
+La situation d'activité est issue de la variable synthétique \texttt{sitac}
+produite par l'ANSD, regroupée en quatre postes : actif occupé, chômeur BIT,
+main-d'oeuvre potentielle et inactif. Pour les actifs occupés, le module
+construit le statut dans l'emploi, le type (salarié/indépendant), le secteur
+d'activité selon la nomenclature ISIC Rév. 4 (21 sections et regroupement en
+quatre familles), les heures travaillées par semaine, le sous-emploi lié à la
+durée, le revenu mensuel consolidé et les indicateurs de formalité de l'unité
+de production et de l'emploi.
+
+Cinq correspondances erronées ont été identifiées lors de la vérification du
+dictionnaire initial par croisement avec le questionnaire et les métadonnées
+du fichier. Les corrections apportées figurent dans le tableau ci-dessous.
+
+\begin{table}[h!]
+\centering
+\begin{tabularx}{\linewidth}{lllX}
+\toprule
+\textbf{Variable} & \textbf{Initiale} & \textbf{Corrigée} & \textbf{Note} \\
+\midrule
+Situation matrimoniale    & M5     & M25    & M5 est le lieu de naissance \\
+Secteur ISIC principal    & AP4    & AP2\_Niv1 & AP4 est le secteur institutionnel \\
+Heures travaillées        & AP6A   & AP10C  & AP6A est le régime fiscal \\
+Revenu principal          & AP8A1  & AP13A/B/C & AP8A1 est l'ancienneté dans l'emploi \\
+Raison d'inactivité       & SE9    & SE11   & SE9 est la disponibilité à travailler \\
+\bottomrule
+\end{tabularx}
+\caption{Corrections apportées au dictionnaire de variables}
+\end{table}
+
+\subsection*{4.3\quad Module emploi secondaire}
+
+Le module traite le premier emploi secondaire déclaré (suffixe \texttt{\_AS1}),
+seul statistiquement significatif (118 répondants seulement pour le second).
+Il construit le statut, le type d'emploi, le secteur d'activité, les heures
+hebdomadaires (converties depuis des minutes par jour renseignées dans
+\texttt{AS9C}), le revenu mensuel et la formalité de l'emploi. Une variable
+indicatrice signale les codes sectoriels potentiellement issus d'une révision
+antérieure de la nomenclature ISIC.
+
+\subsection*{4.4\quad Table ménages}
+
+La table ménages est construite à partir du chef de ménage identifié dans le
+roster. Elle contient les caractéristiques démographiques et géographiques du
+chef, la structure du ménage (taille, répartition par sexe, nombre de membres
+de moins de 15 ans et de 15 ans et plus) ainsi que, après consolidation, les
+agrégats d'emploi au niveau ménage (nombre d'actifs occupés, de salariés,
+d'emplois informels et ratio de dépendance).
+
+% ============================================================
+\section*{5.\quad Contrôle qualité}
+
+Chaque module produit deux fichiers de sortie complémentaires : un fichier de
+contrôles de cohérence (\texttt{qc\_*.csv}) listant les anomalies détectées avec
+leur effectif, et un fichier d'estimations pondérées (\texttt{estimations\_*.csv})
+permettant la comparaison avec les chiffres publiés par l'ANSD. Le module de
+consolidation produit également des contrôles croisés portant sur la cohérence
+entre les tables individus et ménages.
+
+Les estimations clés obtenues sur le volet emploi, comparées aux valeurs de
+référence du rapport final ANSD (2017), sont présentées ci-dessous à titre
+indicatif.
+
+\begin{table}[h!]
+\centering
+\begin{tabularx}{\linewidth}{Xrr}
+\toprule
+\textbf{Indicateur} & \textbf{Pipeline} & \textbf{ANSD} \\
+\midrule
+Taux de chômage BIT (\%)                    & recalculé & 2,9 \\
+Taux de salarisation (\%)                   & recalculé & 38,6 \\
+Part des indépendants parmi les occupés (\%) & recalculé & 66,1 \\
+Taux d'emploi informel (\%)                 & recalculé & 95,4 \\
+Secteur primaire parmi les occupés (\%)     & recalculé & 24,7 \\
+Secteur commerce parmi les occupés (\%)     & recalculé & 27,6 \\
+\bottomrule
+\end{tabularx}
+\caption{Indicateurs d'emploi -- valeurs de référence ANSD (2017)}
+\end{table}
+
+La colonne \og Pipeline \fg{} est à renseigner après exécution complète sur les
+données réelles, les fichiers bruts n'étant pas versionnés dans le dépôt.
+
+% ============================================================
+\section*{6.\quad Reproductibilité et généralisation}
+
+L'ensemble du pipeline est reproductible depuis la racine du dépôt en exécutant
+les six scripts dans l'ordre indiqué au tableau 2. La seule condition préalable
+est la présence des fichiers sources dans le répertoire \texttt{input/SEN/}.
+L'adaptation à un autre pays de l'UEMOA ne nécessite que la modification du
+bloc global dans \texttt{config.do} (code pays, noms de fichiers, clés de
+fusion et noms de variables si la nomenclature du questionnaire diffère).
+
+Le dépôt est organisé comme suit : \texttt{scripts/stata/} pour les scripts de
+traitement, \texttt{docs/} pour la documentation et le présent rapport,
+\texttt{input/} et \texttt{output/} pour les données (non versionnées). Un
+fichier \texttt{README.md} décrit l'organisation du projet et les étapes
+d'exécution.
+
+% ============================================================
+\section*{7.\quad Conclusion}
+
+Ce travail produit un pipeline de traitement structuré et documenté pour les
+données ERI-ESI 2017, volet Sénégal. Les deux tables analytiques finales
+(individus et ménages) couvrent l'ensemble des dimensions thématiques
+accessibles dans les fichiers du volet emploi : démographie, géographie,
+situation d'activité, emploi principal et secondaire, formalité et revenus.
+La démarche de contrôle qualité intégrée à chaque module garantit la traçabilité
+des choix méthodologiques et facilite la comparaison avec les statistiques
+officielles publiées par l'ANSD.
+
+\vspace{1.5cm}
+\noindent Nous tenions à vous remercier pour l'enseignement dispensé tout au long
+de ce cours et restons à votre disposition pour toute précision.
+
+\vspace{1cm}
+\noindent\textit{Cordialement,}
+
+\vspace{0.5cm}
+\noindent\textbf{Membres du Groupe 1}\\
+Ndeye Aïssatou CISSE, Papa Maguette DIOP, Aïssatou GUEYE, Awa GUEYE, Marc MARE\\
+\textit{Analystes statisticiens en fin de formation}
+
+\end{document}
